@@ -13,6 +13,12 @@ export default function Prestamos() {
   const [libros, setLibros] = useState([])
   const [ejemplarSeleccionado, setEjemplarSeleccionado] = useState(null)
 
+  // Búsqueda de lector existente
+  const [busquedaLector, setBusquedaLector] = useState('')
+  const [resultadosLector, setResultadosLector] = useState([])
+  const [lectorEncontrado, setLectorEncontrado] = useState(null)
+  const [modoLector, setModoLector] = useState('buscar') // buscar | nuevo | encontrado
+
   // Datos lector formal
   const [nombre, setNombre] = useState('')
   const [dpi, setDpi] = useState('')
@@ -23,9 +29,71 @@ export default function Prestamos() {
   const [telefonoTutor, setTelefonoTutor] = useState('')
   const [dpiTutor, setDpiTutor] = useState('')
 
+  // Datos educativos
+  const [esEstudiante, setEsEstudiante] = useState(false)
+  const [niveles, setNiveles] = useState([])
+  const [establecimientos, setEstablecimientos] = useState([])
+  const [establecimientosFiltrados, setEstablecimientosFiltrados] = useState([])
+  const [idNivel, setIdNivel] = useState('')
+  const [idEstablecimiento, setIdEstablecimiento] = useState('')
+  const [gradoCiclo, setGradoCiclo] = useState('')
+
   // Datos inmediato
   const [nombreInmediato, setNombreInmediato] = useState('')
   const [dpiGarantia, setDpiGarantia] = useState('')
+
+  useEffect(() => {
+    cargarNiveles()
+    cargarEstablecimientos()
+  }, [])
+
+  useEffect(() => {
+    if (idNivel) {
+      setEstablecimientosFiltrados(establecimientos.filter(e => e.id_nivel === parseInt(idNivel) && e.activo))
+      setIdEstablecimiento('')
+    } else {
+      setEstablecimientosFiltrados([])
+    }
+  }, [idNivel, establecimientos])
+
+  async function cargarNiveles() {
+    const { data } = await supabase.from('niveleducativo').select('*').order('id_nivel')
+    setNiveles(data || [])
+  }
+
+  async function cargarEstablecimientos() {
+    const { data } = await supabase.from('establecimiento').select('*').eq('activo', true)
+    setEstablecimientos(data || [])
+  }
+
+  async function buscarLector() {
+    if (!busquedaLector.trim()) return
+    const { data } = await supabase
+      .from('lector')
+      .select('*')
+      .or(`dpi.ilike.%${busquedaLector}%,nombre.ilike.%${busquedaLector}%`)
+      .limit(5)
+    setResultadosLector(data || [])
+  }
+
+  function seleccionarLector(lector) {
+    setLectorEncontrado(lector)
+    setModoLector('encontrado')
+    setNombre(lector.nombre)
+    setDpi(lector.dpi || '')
+    setTelefono(lector.telefono || '')
+    setDireccion(lector.direccion || '')
+    setEsMenor(lector.es_menor || false)
+    setNombreTutor(lector.nombre_tutor || '')
+    setTelefonoTutor(lector.telefono_tutor || '')
+    setDpiTutor(lector.dpi_tutor || '')
+    setIdNivel(lector.id_nivel ? String(lector.id_nivel) : '')
+    setIdEstablecimiento(lector.id_establecimiento ? String(lector.id_establecimiento) : '')
+    setGradoCiclo(lector.grado_ciclo || '')
+    setEsEstudiante(!!lector.id_nivel)
+    setResultadosLector([])
+    setBusquedaLector('')
+  }
 
   async function buscarLibros() {
     if (!busquedaLibro.trim()) return
@@ -81,16 +149,12 @@ export default function Prestamos() {
       let idLector = null
 
       if (tipo === 'FORMAL') {
-        // Verificar préstamo activo existente
-        const lectorExistente = dpi
-          ? await supabase.from('lector').select('id_lector').eq('dpi', dpi).single()
-          : null
-
-        if (lectorExistente?.data) {
+        if (lectorEncontrado) {
+          // Lector existente — verificar préstamo activo
           const { data: prestamoActivo } = await supabase
             .from('prestamo')
             .select('id_prestamo')
-            .eq('id_lector', lectorExistente.data.id_lector)
+            .eq('id_lector', lectorEncontrado.id_lector)
             .eq('tipo', 'FORMAL')
             .eq('estado', 'ACTIVO')
             .single()
@@ -100,8 +164,9 @@ export default function Prestamos() {
             setGuardando(false)
             return
           }
-          idLector = lectorExistente.data.id_lector
+          idLector = lectorEncontrado.id_lector
         } else {
+          // Lector nuevo
           const { data: nuevoLector, error: errorLector } = await supabase
             .from('lector')
             .insert({
@@ -113,6 +178,9 @@ export default function Prestamos() {
               nombre_tutor: esMenor ? nombreTutor : null,
               telefono_tutor: esMenor ? telefonoTutor : null,
               dpi_tutor: esMenor ? dpiTutor : null,
+              id_nivel: esEstudiante && idNivel ? parseInt(idNivel) : null,
+              id_establecimiento: esEstudiante && idEstablecimiento ? parseInt(idEstablecimiento) : null,
+              grado_ciclo: esEstudiante && gradoCiclo ? gradoCiclo : null,
             })
             .select('id_lector')
             .single()
@@ -163,6 +231,9 @@ export default function Prestamos() {
     setNombre(''); setDpi(''); setTelefono(''); setDireccion('')
     setEsMenor(false); setNombreTutor(''); setTelefonoTutor(''); setDpiTutor('')
     setNombreInmediato(''); setDpiGarantia('')
+    setBusquedaLector(''); setResultadosLector([]); setLectorEncontrado(null)
+    setModoLector('buscar'); setEsEstudiante(false)
+    setIdNivel(''); setIdEstablecimiento(''); setGradoCiclo('')
   }
 
   const inputStyle = { padding: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
@@ -181,6 +252,7 @@ export default function Prestamos() {
         </select>
       </div>
 
+      {/* Búsqueda de libro */}
       <div style={{ marginBottom: '20px' }}>
         <label style={labelStyle}>Buscar libro</label>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -216,12 +288,9 @@ export default function Prestamos() {
                         key={ej.id_ejemplar}
                         onClick={() => setEjemplarSeleccionado({ ...ej, categoria: libro.categoria })}
                         style={{
-                          padding: '4px 10px',
-                          marginRight: '6px',
-                          cursor: 'pointer',
+                          padding: '4px 10px', marginRight: '6px', cursor: 'pointer', fontSize: '13px',
                           background: ejemplarSeleccionado?.id_ejemplar === ej.id_ejemplar ? '#16a34a' : '',
                           color: ejemplarSeleccionado?.id_ejemplar === ej.id_ejemplar ? 'white' : '',
-                          fontSize: '13px'
                         }}
                       >
                         {ej.codigo_inventario} — {ej.ubicacion_dewey}
@@ -241,49 +310,170 @@ export default function Prestamos() {
         )}
       </div>
 
+      {/* Sección lector formal */}
       {tipo === 'FORMAL' && (
         <div>
           <h3 style={{ marginBottom: '12px' }}>Datos del lector</h3>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Nombre completo *</label>
-            <input style={inputStyle} value={nombre} onChange={e => setNombre(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>
-              <input type="checkbox" checked={esMenor} onChange={e => setEsMenor(e.target.checked)} style={{ marginRight: '6px' }} />
-              Es menor de edad
-            </label>
-          </div>
-          {!esMenor && (
-            <div style={fieldStyle}>
-              <label style={labelStyle}>DPI *</label>
-              <input style={inputStyle} value={dpi} onChange={e => setDpi(e.target.value)} />
+
+          {/* Búsqueda lector existente */}
+          {modoLector === 'buscar' && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', marginBottom: '16px' }}>
+              <label style={labelStyle}>Buscar lector existente por nombre o DPI</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Nombre o DPI..."
+                  value={busquedaLector}
+                  onChange={e => setBusquedaLector(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && buscarLector()}
+                  style={{ ...inputStyle, width: 'auto', flex: 1 }}
+                />
+                <button onClick={buscarLector} style={{ padding: '8px 16px', cursor: 'pointer' }}>Buscar</button>
+              </div>
+
+              {resultadosLector.length > 0 && (
+                <div>
+                  {resultadosLector.map(l => (
+                    <div
+                      key={l.id_lector}
+                      style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <span style={{ fontSize: '13px' }}>
+                        {l.nombre} {l.dpi ? `— DPI: ${l.dpi}` : ''} {l.telefono ? `— Tel: ${l.telefono}` : ''}
+                      </span>
+                      <button onClick={() => seleccionarLector(l)} style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '13px' }}>
+                        Seleccionar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {resultadosLector.length === 0 && busquedaLector && (
+                <p style={{ fontSize: '13px', color: '#666', margin: '4px 0' }}>
+                  Sin resultados.
+                </p>
+              )}
+
+              <button
+                onClick={() => setModoLector('nuevo')}
+                style={{ marginTop: '8px', padding: '6px 14px', cursor: 'pointer', fontSize: '13px' }}
+              >
+                + Registrar lector nuevo
+              </button>
             </div>
           )}
-          {esMenor && (
-            <>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Nombre del tutor *</label>
-                <input style={inputStyle} value={nombreTutor} onChange={e => setNombreTutor(e.target.value)} />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Teléfono del tutor *</label>
-                <input style={inputStyle} value={telefonoTutor} onChange={e => setTelefonoTutor(e.target.value)} />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>DPI del tutor</label>
-                <input style={inputStyle} value={dpiTutor} onChange={e => setDpiTutor(e.target.value)} />
-              </div>
-            </>
+
+          {modoLector === 'encontrado' && lectorEncontrado && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', padding: '12px', marginBottom: '16px' }}>
+              <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#16a34a', fontSize: '14px' }}>
+                ✓ Lector existente seleccionado
+              </p>
+              <p style={{ margin: '0', fontSize: '13px' }}>
+                {lectorEncontrado.nombre} {lectorEncontrado.dpi ? `— DPI: ${lectorEncontrado.dpi}` : ''} {lectorEncontrado.telefono ? `— Tel: ${lectorEncontrado.telefono}` : ''}
+              </p>
+              <button
+                onClick={() => { setLectorEncontrado(null); setModoLector('buscar') }}
+                style={{ marginTop: '8px', padding: '4px 12px', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Cambiar lector
+              </button>
+            </div>
           )}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Teléfono *</label>
-            <input style={inputStyle} value={telefono} onChange={e => setTelefono(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Dirección *</label>
-            <input style={inputStyle} value={direccion} onChange={e => setDireccion(e.target.value)} />
-          </div>
+
+          {modoLector === 'nuevo' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>Registrar lector nuevo</p>
+                <button onClick={() => { setModoLector('buscar'); setResultadosLector([]) }} style={{ padding: '4px 12px', cursor: 'pointer', fontSize: '13px' }}>
+                  ← Volver a buscar
+                </button>
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Nombre completo *</label>
+                <input style={inputStyle} value={nombre} onChange={e => setNombre(e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  <input type="checkbox" checked={esMenor} onChange={e => setEsMenor(e.target.checked)} style={{ marginRight: '6px' }} />
+                  Es menor de edad
+                </label>
+              </div>
+              {!esMenor && (
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>DPI *</label>
+                  <input style={inputStyle} value={dpi} onChange={e => setDpi(e.target.value)} />
+                </div>
+              )}
+              {esMenor && (
+                <>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Nombre del tutor *</label>
+                    <input style={inputStyle} value={nombreTutor} onChange={e => setNombreTutor(e.target.value)} />
+                  </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Teléfono del tutor *</label>
+                    <input style={inputStyle} value={telefonoTutor} onChange={e => setTelefonoTutor(e.target.value)} />
+                  </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>DPI del tutor</label>
+                    <input style={inputStyle} value={dpiTutor} onChange={e => setDpiTutor(e.target.value)} />
+                  </div>
+                </>
+              )}
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Teléfono *</label>
+                <input style={inputStyle} value={telefono} onChange={e => setTelefono(e.target.value)} />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Dirección *</label>
+                <input style={inputStyle} value={direccion} onChange={e => setDireccion(e.target.value)} />
+              </div>
+
+              {/* Datos educativos */}
+              <div style={{ ...fieldStyle, borderTop: '1px solid #e2e8f0', paddingTop: '12px', marginTop: '4px' }}>
+                <label style={labelStyle}>
+                  <input type="checkbox" checked={esEstudiante} onChange={e => setEsEstudiante(e.target.checked)} style={{ marginRight: '6px' }} />
+                  Es estudiante
+                </label>
+              </div>
+
+              {esEstudiante && (
+                <>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Nivel educativo</label>
+                    <select style={inputStyle} value={idNivel} onChange={e => setIdNivel(e.target.value)}>
+                      <option value="">Seleccione...</option>
+                      {niveles.map(n => (
+                        <option key={n.id_nivel} value={n.id_nivel}>{n.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {idNivel && (
+                    <div style={fieldStyle}>
+                      <label style={labelStyle}>Establecimiento</label>
+                      <select style={inputStyle} value={idEstablecimiento} onChange={e => setIdEstablecimiento(e.target.value)}>
+                        <option value="">Seleccione...</option>
+                        {establecimientosFiltrados.map(e => (
+                          <option key={e.id_establecimiento} value={e.id_establecimiento}>{e.nombre}</option>
+                        ))}
+                      </select>
+                      {establecimientosFiltrados.length === 0 && (
+                        <p style={{ fontSize: '12px', color: '#888', margin: '4px 0 0 0' }}>
+                          Sin establecimientos registrados para este nivel.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Grado o ciclo</label>
+                    <input style={inputStyle} placeholder="ej: Segundo Básico" value={gradoCiclo} onChange={e => setGradoCiclo(e.target.value)} />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

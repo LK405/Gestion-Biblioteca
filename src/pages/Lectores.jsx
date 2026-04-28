@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function Lectores() {
@@ -8,13 +8,38 @@ export default function Lectores() {
   const [lectorSeleccionado, setLectorSeleccionado] = useState(null)
   const [historial, setHistorial] = useState([])
   const [cargandoHistorial, setCargandoHistorial] = useState(false)
+  const [niveles, setNiveles] = useState([])
+  const [establecimientos, setEstablecimientos] = useState([])
+
+  useEffect(() => {
+    cargarNiveles()
+    cargarEstablecimientos()
+  }, [])
+
+  async function cargarNiveles() {
+    const { data } = await supabase.from('niveleducativo').select('*').order('id_nivel')
+    setNiveles(data || [])
+  }
+
+  async function cargarEstablecimientos() {
+    const { data } = await supabase.from('establecimiento').select('*')
+    setEstablecimientos(data || [])
+  }
+
+  function nombreNivel(idNivel) {
+    return niveles.find(n => n.id_nivel === idNivel)?.nombre || '—'
+  }
+
+  function nombreEstablecimiento(idEstablecimiento) {
+    return establecimientos.find(e => e.id_establecimiento === idEstablecimiento)?.nombre || '—'
+  }
 
   async function buscarLectores() {
     if (!busqueda.trim()) return
     setCargando(true)
     const { data } = await supabase
       .from('lector')
-      .select('id_lector, nombre, dpi, telefono, direccion, es_menor, registrado_en')
+      .select('*')
       .ilike('nombre', `%${busqueda}%`)
       .order('nombre')
       .limit(20)
@@ -74,6 +99,7 @@ export default function Lectores() {
               <th style={{ padding: '8px' }}>DPI</th>
               <th style={{ padding: '8px' }}>Teléfono</th>
               <th style={{ padding: '8px' }}>Menor</th>
+              <th style={{ padding: '8px' }}>Estudiante</th>
               <th style={{ padding: '8px' }}></th>
             </tr>
           </thead>
@@ -84,6 +110,7 @@ export default function Lectores() {
                 <td style={{ padding: '8px' }}>{l.dpi || '—'}</td>
                 <td style={{ padding: '8px' }}>{l.telefono || '—'}</td>
                 <td style={{ padding: '8px' }}>{l.es_menor ? 'Sí' : 'No'}</td>
+                <td style={{ padding: '8px' }}>{l.id_nivel ? 'Sí' : 'No'}</td>
                 <td style={{ padding: '8px' }}>
                   <button onClick={() => verHistorial(l)} style={{ cursor: 'pointer', padding: '4px 10px' }}>
                     Ver historial
@@ -104,11 +131,25 @@ export default function Lectores() {
             ← Volver
           </button>
           <h2>{lectorSeleccionado.nombre}</h2>
-          <p style={{ fontSize: '14px', color: '#555' }}>
-            DPI: {lectorSeleccionado.dpi || '—'} |
-            Tel: {lectorSeleccionado.telefono || '—'} |
-            {lectorSeleccionado.es_menor ? ' Menor de edad' : ' Mayor de edad'}
-          </p>
+          <div style={{ fontSize: '14px', color: '#555', marginBottom: '16px' }}>
+            <p style={{ margin: '2px 0' }}>DPI: {lectorSeleccionado.dpi || '—'}</p>
+            <p style={{ margin: '2px 0' }}>Teléfono: {lectorSeleccionado.telefono || '—'}</p>
+            <p style={{ margin: '2px 0' }}>Dirección: {lectorSeleccionado.direccion || '—'}</p>
+            <p style={{ margin: '2px 0' }}>Menor de edad: {lectorSeleccionado.es_menor ? 'Sí' : 'No'}</p>
+            {lectorSeleccionado.es_menor && (
+              <>
+                <p style={{ margin: '2px 0' }}>Tutor: {lectorSeleccionado.nombre_tutor || '—'}</p>
+                <p style={{ margin: '2px 0' }}>Tel. tutor: {lectorSeleccionado.telefono_tutor || '—'}</p>
+              </>
+            )}
+            {lectorSeleccionado.id_nivel && (
+              <>
+                <p style={{ margin: '2px 0' }}>Nivel: {nombreNivel(lectorSeleccionado.id_nivel)}</p>
+                <p style={{ margin: '2px 0' }}>Establecimiento: {nombreEstablecimiento(lectorSeleccionado.id_establecimiento)}</p>
+                <p style={{ margin: '2px 0' }}>Grado/Ciclo: {lectorSeleccionado.grado_ciclo || '—'}</p>
+              </>
+            )}
+          </div>
 
           {cargandoHistorial && <p>Cargando historial...</p>}
 
@@ -117,7 +158,7 @@ export default function Lectores() {
           )}
 
           {!cargandoHistorial && historial.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', marginTop: '12px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
                   <th style={{ padding: '8px' }}>Libro</th>

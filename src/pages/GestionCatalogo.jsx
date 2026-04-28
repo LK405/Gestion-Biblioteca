@@ -4,9 +4,11 @@ import { useAuth } from '@/hooks/useAuth'
 
 export default function GestionCatalogo() {
   const { usuario } = useAuth()
-  const [vista, setVista] = useState('titulos') // titulos | nuevo_titulo | nuevo_ejemplar | configuracion
+  const [vista, setVista] = useState('titulos')
   const [categorias, setCategorias] = useState([])
   const [titulos, setTitulos] = useState([])
+  const [niveles, setNiveles] = useState([])
+  const [establecimientos, setEstablecimientos] = useState([])
   const [mensaje, setMensaje] = useState({ texto: '', error: false })
   const [guardando, setGuardando] = useState(false)
 
@@ -30,9 +32,15 @@ export default function GestionCatalogo() {
   const [cfgLeve, setCfgLeve] = useState('')
   const [cfgGrave, setCfgGrave] = useState('')
 
+  // Nuevo establecimiento
+  const [nombreEstablecimiento, setNombreEstablecimiento] = useState('')
+  const [idNivelEstablecimiento, setIdNivelEstablecimiento] = useState('')
+
   useEffect(() => {
     cargarCategorias()
     cargarTitulos()
+    cargarNiveles()
+    cargarEstablecimientos()
   }, [])
 
   useEffect(() => {
@@ -50,6 +58,19 @@ export default function GestionCatalogo() {
       .select('id_titulo, titulo, autor, activo, categoria (nombre), ejemplar (id_ejemplar, estado)')
       .order('titulo')
     setTitulos(data || [])
+  }
+
+  async function cargarNiveles() {
+    const { data } = await supabase.from('niveleducativo').select('*').order('id_nivel')
+    setNiveles(data || [])
+  }
+
+  async function cargarEstablecimientos() {
+    const { data } = await supabase
+      .from('establecimiento')
+      .select('*, niveleducativo (nombre)')
+      .order('nombre')
+    setEstablecimientos(data || [])
   }
 
   async function cargarConfig() {
@@ -70,8 +91,7 @@ export default function GestionCatalogo() {
     }
     setGuardando(true)
     const { error } = await supabase.from('titulo').insert({
-      titulo: tituloNombre,
-      autor,
+      titulo: tituloNombre, autor,
       isbn: isbn || null,
       anio_publicacion: anio ? parseInt(anio) : null,
       id_categoria: parseInt(idCategoria),
@@ -110,8 +130,8 @@ export default function GestionCatalogo() {
     setGuardando(false)
   }
 
-  async function darDeBaja(idTitulo) {
-    if (!confirm('¿Dar de baja este título? No se eliminará, solo se marcará como inactivo.')) return
+  async function darDeBajaTitulo(idTitulo) {
+    if (!confirm('¿Dar de baja este título? Se marcará como inactivo.')) return
     await supabase.from('titulo').update({ activo: false }).eq('id_titulo', idTitulo)
     cargarTitulos()
   }
@@ -129,41 +149,61 @@ export default function GestionCatalogo() {
         actualizado_en: new Date().toISOString(),
       })
       .eq('id_config', config.id_config)
+    setMensaje(error
+      ? { texto: 'Error al guardar configuración.', error: true }
+      : { texto: 'Configuración actualizada.', error: false }
+    )
+    setGuardando(false)
+  }
+
+  async function guardarEstablecimiento() {
+    if (!nombreEstablecimiento.trim() || !idNivelEstablecimiento) {
+      setMensaje({ texto: 'Nombre y nivel son obligatorios.', error: true })
+      return
+    }
+    setGuardando(true)
+    const { error } = await supabase.from('establecimiento').insert({
+      nombre: nombreEstablecimiento,
+      id_nivel: parseInt(idNivelEstablecimiento),
+      activo: true,
+    })
     if (error) {
-      setMensaje({ texto: 'Error al guardar configuración.', error: true })
+      setMensaje({ texto: 'Error al guardar establecimiento.', error: true })
     } else {
-      setMensaje({ texto: 'Configuración actualizada.', error: false })
+      setMensaje({ texto: 'Establecimiento registrado correctamente.', error: false })
+      setNombreEstablecimiento('')
+      setIdNivelEstablecimiento('')
+      cargarEstablecimientos()
     }
     setGuardando(false)
+  }
+
+  async function darDeBajaEstablecimiento(id) {
+    if (!confirm('¿Dar de baja este establecimiento?')) return
+    await supabase.from('establecimiento').update({ activo: false }).eq('id_establecimiento', id)
+    cargarEstablecimientos()
   }
 
   const inputStyle = { padding: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
   const labelStyle = { fontSize: '13px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }
   const fieldStyle = { marginBottom: '12px' }
   const tabStyle = (activo) => ({
-    padding: '8px 16px', cursor: 'pointer', marginRight: '4px',
+    padding: '8px 14px', cursor: 'pointer', marginRight: '4px',
     background: activo ? '#1d4ed8' : '#e5e7eb',
     color: activo ? 'white' : 'black',
-    border: 'none', borderRadius: '4px', fontSize: '14px'
+    border: 'none', borderRadius: '4px', fontSize: '13px'
   })
 
   return (
     <div style={{ padding: '32px', maxWidth: '900px' }}>
       <h1>Gestión de catálogo</h1>
 
-      <div style={{ marginBottom: '24px' }}>
-        <button style={tabStyle(vista === 'titulos')} onClick={() => { setVista('titulos'); setMensaje({ texto: '', error: false }) }}>
-          Ver títulos
-        </button>
-        <button style={tabStyle(vista === 'nuevo_titulo')} onClick={() => { setVista('nuevo_titulo'); setMensaje({ texto: '', error: false }) }}>
-          Nuevo título
-        </button>
-        <button style={tabStyle(vista === 'nuevo_ejemplar')} onClick={() => { setVista('nuevo_ejemplar'); setMensaje({ texto: '', error: false }) }}>
-          Nuevo ejemplar
-        </button>
-        <button style={tabStyle(vista === 'configuracion')} onClick={() => { setVista('configuracion'); setMensaje({ texto: '', error: false }) }}>
-          Config. multas
-        </button>
+      <div style={{ marginBottom: '24px', flexWrap: 'wrap', display: 'flex', gap: '4px' }}>
+        <button style={tabStyle(vista === 'titulos')} onClick={() => { setVista('titulos'); setMensaje({ texto: '', error: false }) }}>Ver títulos</button>
+        <button style={tabStyle(vista === 'nuevo_titulo')} onClick={() => { setVista('nuevo_titulo'); setMensaje({ texto: '', error: false }) }}>Nuevo título</button>
+        <button style={tabStyle(vista === 'nuevo_ejemplar')} onClick={() => { setVista('nuevo_ejemplar'); setMensaje({ texto: '', error: false }) }}>Nuevo ejemplar</button>
+        <button style={tabStyle(vista === 'establecimientos')} onClick={() => { setVista('establecimientos'); setMensaje({ texto: '', error: false }) }}>Establecimientos</button>
+        <button style={tabStyle(vista === 'configuracion')} onClick={() => { setVista('configuracion'); setMensaje({ texto: '', error: false }) }}>Config. multas</button>
       </div>
 
       {mensaje.texto && (
@@ -194,10 +234,7 @@ export default function GestionCatalogo() {
                 <td style={{ padding: '8px' }}>{t.activo ? 'Activo' : 'Baja'}</td>
                 <td style={{ padding: '8px' }}>
                   {t.activo && (
-                    <button
-                      onClick={() => darDeBaja(t.id_titulo)}
-                      style={{ cursor: 'pointer', padding: '4px 10px', color: '#dc2626' }}
-                    >
+                    <button onClick={() => darDeBajaTitulo(t.id_titulo)} style={{ cursor: 'pointer', padding: '4px 10px', color: '#dc2626' }}>
                       Dar de baja
                     </button>
                   )}
@@ -223,9 +260,7 @@ export default function GestionCatalogo() {
             <select style={inputStyle} value={idCategoria} onChange={e => setIdCategoria(e.target.value)}>
               <option value="">Seleccione...</option>
               {categorias.map(c => (
-                <option key={c.id_categoria} value={c.id_categoria}>
-                  {c.codigo_dewey} — {c.nombre}
-                </option>
+                <option key={c.id_categoria} value={c.id_categoria}>{c.codigo_dewey} — {c.nombre}</option>
               ))}
             </select>
           </div>
@@ -269,6 +304,67 @@ export default function GestionCatalogo() {
           <button onClick={guardarEjemplar} disabled={guardando} style={{ padding: '10px 24px', cursor: 'pointer' }}>
             {guardando ? 'Guardando...' : 'Guardar ejemplar'}
           </button>
+        </div>
+      )}
+
+      {vista === 'establecimientos' && (
+        <div>
+          {/* Formulario nuevo establecimiento */}
+          <div style={{ maxWidth: '500px', marginBottom: '32px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+            <h3 style={{ margin: '0 0 16px 0' }}>Agregar establecimiento</h3>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Nombre *</label>
+              <input style={inputStyle} value={nombreEstablecimiento} onChange={e => setNombreEstablecimiento(e.target.value)} placeholder="Nombre del establecimiento" />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Nivel educativo *</label>
+              <select style={inputStyle} value={idNivelEstablecimiento} onChange={e => setIdNivelEstablecimiento(e.target.value)}>
+                <option value="">Seleccione...</option>
+                {niveles.map(n => (
+                  <option key={n.id_nivel} value={n.id_nivel}>{n.nombre}</option>
+                ))}
+              </select>
+            </div>
+            <button onClick={guardarEstablecimiento} disabled={guardando} style={{ padding: '8px 20px', cursor: 'pointer' }}>
+              {guardando ? 'Guardando...' : 'Agregar'}
+            </button>
+          </div>
+
+          {/* Lista de establecimientos */}
+          <h3 style={{ marginBottom: '12px' }}>Establecimientos registrados</h3>
+          {establecimientos.length === 0 ? (
+            <p style={{ color: '#666' }}>Sin establecimientos registrados.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
+                  <th style={{ padding: '8px' }}>Nombre</th>
+                  <th style={{ padding: '8px' }}>Nivel</th>
+                  <th style={{ padding: '8px' }}>Estado</th>
+                  <th style={{ padding: '8px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {establecimientos.map(e => (
+                  <tr key={e.id_establecimiento} style={{ borderBottom: '1px solid #eee', opacity: e.activo ? 1 : 0.5 }}>
+                    <td style={{ padding: '8px' }}>{e.nombre}</td>
+                    <td style={{ padding: '8px' }}>{e.niveleducativo?.nombre || '—'}</td>
+                    <td style={{ padding: '8px' }}>{e.activo ? 'Activo' : 'Baja'}</td>
+                    <td style={{ padding: '8px' }}>
+                      {e.activo && (
+                        <button
+                          onClick={() => darDeBajaEstablecimiento(e.id_establecimiento)}
+                          style={{ cursor: 'pointer', padding: '4px 10px', color: '#dc2626' }}
+                        >
+                          Dar de baja
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
