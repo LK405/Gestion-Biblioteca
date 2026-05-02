@@ -1,63 +1,113 @@
-import { useEffect, useState } from 'react'
+ import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 
+const POR_PAGINA = 20
+const IMAGEN_PLACEHOLDER = 'https://via.placeholder.com/150x200?text=Libro'
+
 export default function Catalogo() {
+  const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
-  const [filtro, setFiltro] = useState('titulo')
+  const [filtro, setFiltro] = useState('general')
   const [resultados, setResultados] = useState([])
   const [cargando, setCargando] = useState(false)
-  const [buscado, setBuscado] = useState(false)
+  const [pagina, setPagina] = useState(1)
+  const [total, setTotal] = useState(0)
 
-  async function buscar() {
+  useEffect(() => {
+    cargarTitulos(1, '', 'general')
+  }, [])
+
+  async function cargarTitulos(pag, termino, filtroActual) {
     setCargando(true)
-    setBuscado(true)
+    const desde = (pag - 1) * POR_PAGINA
+    const hasta = desde + POR_PAGINA - 1
 
     let query = supabase
-      .from('titulo')
-      .select(`
-        id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url,
-        categoria (nombre, codigo_dewey),
-        ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, estado)
-      `)
-      .eq('activo', true)
+  .from('titulo')
+  .select(`
+    id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url,
+    categoria (nombre, codigo_dewey, permite_prestamo_formal),
+    ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, estado)
+  `, { count: 'exact' })
+  .eq('activo', true)
+  .order('titulo', { ascending: true })
+  .range(desde, hasta)
 
-    if (busqueda.trim()) {
-      if (filtro === 'titulo') query = query.ilike('titulo', `%${busqueda}%`)
-      else if (filtro === 'autor') query = query.ilike('autor', `%${busqueda}%`)
-      else if (filtro === 'dewey') query = query.ilike('categoria.codigo_dewey', `%${busqueda}%`)
+    if (termino.trim()) {
+      if (filtroActual === 'general') {
+        query = query.or(`titulo.ilike.%${termino}%,autor.ilike.%${termino}%`)
+      } else if (filtroActual === 'titulo') {
+        query = query.ilike('titulo', `%${termino}%`)
+      } else if (filtroActual === 'autor') {
+        query = query.ilike('autor', `%${termino}%`)
+      }
     }
 
-    query = query.order('titulo', { ascending: true }).limit(50)
-
-    const { data, error } = await query
+    const { data, error, count } = await query
 
     if (error) {
       console.error('Error en búsqueda:', error)
       setResultados([])
     } else {
       setResultados(data || [])
+      setTotal(count || 0)
     }
-
     setCargando(false)
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter') buscar()
+  function handleBuscar() {
+    setPagina(1)
+    cargarTitulos(1, busqueda, filtro)
+  }
+
+  function handleLimpiar() {
+    setBusqueda('')
+    setFiltro('general')
+    setPagina(1)
+    cargarTitulos(1, '', 'general')
+  }
+
+  function handlePagina(nueva) {
+    setPagina(nueva)
+    cargarTitulos(nueva, busqueda, filtro)
   }
 
   function contarDisponibles(ejemplares) {
-    if (!ejemplares) return 0
-    return ejemplares.filter(e => e.estado === 'DISPONIBLE').length
+    return (ejemplares || []).filter(e => e.estado === 'DISPONIBLE').length
   }
 
-  function colorEstado(estado) {
-    if (estado === 'DISPONIBLE') return '#16a34a'
-    if (estado === 'PRESTADO') return '#d97706'
-    return '#dc2626'
+  function ubicacionPrincipal(ejemplares) {
+    if (!ejemplares || ejemplares.length === 0) return '—'
+    return ejemplares[0].ubicacion_dewey
+  }
+
+  function colorDisponibilidad(disponibles, total) {
+    if (disponibles === 0) return '#dc2626'
+    if (disponibles < total) return '#d97706'
+    return '#16a34a'
+  }
+
+  const totalPaginas = Math.ceil(total / POR_PAGINA)
+
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px',
+  }
+
+  const cardStyle = {
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'white',
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '900px' }}>
+    <div style={{ padding: '32px', maxWidth: '1100px' }}>
       <h1>Catálogo de libros</h1>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -66,90 +116,127 @@ export default function Catalogo() {
           onChange={e => setFiltro(e.target.value)}
           style={{ padding: '8px', fontSize: '14px' }}
         >
-          <option value="titulo">Por título</option>
-          <option value="autor">Por autor</option>
-          <option value="dewey">Por categoría Dewey</option>
+          <option value="general">Título o autor</option>
+          <option value="titulo">Solo título</option>
+          <option value="autor">Solo autor</option>
         </select>
         <input
           type="text"
-          placeholder="Escriba para buscar..."
+          placeholder="Buscar..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={e => e.key === 'Enter' && handleBuscar()}
           style={{ padding: '8px', fontSize: '14px', flex: 1, minWidth: '200px' }}
         />
-        <button
-          onClick={buscar}
-          style={{ padding: '8px 16px', cursor: 'pointer' }}
-        >
-          Buscar
-        </button>
-        <button
-          onClick={() => { setBusqueda(''); setResultados([]); setBuscado(false) }}
-          style={{ padding: '8px 16px', cursor: 'pointer' }}
-        >
-          Limpiar
-        </button>
+        <button onClick={handleBuscar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Buscar</button>
+        <button onClick={handleLimpiar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Limpiar</button>
       </div>
 
-      {cargando && <p>Buscando...</p>}
+      {!cargando && (
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+          {total} {total === 1 ? 'título encontrado' : 'títulos encontrados'}
+          {totalPaginas > 1 ? ` — Página ${pagina} de ${totalPaginas}` : ''}
+        </p>
+      )}
 
-      {!cargando && buscado && resultados.length === 0 && (
+      {cargando && <p>Cargando...</p>}
+
+      {!cargando && resultados.length === 0 && (
         <p style={{ color: '#666' }}>No se encontraron resultados.</p>
       )}
 
-      {!cargando && resultados.map(libro => (
-        <div
-          key={libro.id_titulo}
-          style={{
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            padding: '16px',
-            marginBottom: '16px'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h3 style={{ margin: '0 0 4px 0' }}>{libro.titulo}</h3>
-              <p style={{ margin: '0 0 4px 0', color: '#555', fontSize: '14px' }}>
-                {libro.autor} {libro.anio_publicacion ? `(${libro.anio_publicacion})` : ''}
-              </p>
-              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#888' }}>
-                {libro.categoria?.nombre} — Dewey: {libro.categoria?.codigo_dewey}
-                {libro.isbn ? ` — ISBN: ${libro.isbn}` : ''}
-              </p>
-            </div>
-            <div style={{ textAlign: 'right', minWidth: '120px' }}>
-              <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>
-                Disponibles: {contarDisponibles(libro.ejemplar)} / {libro.ejemplar?.length || 0}
-              </p>
-            </div>
-          </div>
+      {!cargando && (
+        <div style={gridStyle}>
+          {resultados.map(libro => {
+            const disponibles = contarDisponibles(libro.ejemplar)
+            const totalEjemplares = libro.ejemplar?.length || 0
+            const color = colorDisponibilidad(disponibles, totalEjemplares)
 
-          {libro.ejemplar && libro.ejemplar.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '8px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                  <th style={{ padding: '4px 8px' }}>Código</th>
-                  <th style={{ padding: '4px 8px' }}>Ubicación Dewey</th>
-                  <th style={{ padding: '4px 8px' }}>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {libro.ejemplar.map(ej => (
-                  <tr key={ej.id_ejemplar} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '4px 8px' }}>{ej.codigo_inventario}</td>
-                    <td style={{ padding: '4px 8px' }}>{ej.ubicacion_dewey}</td>
-                    <td style={{ padding: '4px 8px', color: colorEstado(ej.estado), fontWeight: 'bold' }}>
-                      {ej.estado}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            return (
+              <div key={libro.id_titulo} style={cardStyle}>
+                {/* Imagen */}
+                <img
+                  src={libro.imagen_url || IMAGEN_PLACEHOLDER}
+                  alt={libro.titulo}
+                  style={{ width: '100%', height: '180px', objectFit: 'cover' }}
+                  onError={e => { e.target.src = IMAGEN_PLACEHOLDER }}
+                />
+
+                {/* Contenido */}
+                <div style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px', lineHeight: '1.3' }}>
+                    {libro.titulo}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#555' }}>
+                    {libro.autor}
+                  </p>
+                  {libro.isbn && (
+                    <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>
+                      ISBN: {libro.isbn}
+                    </p>
+                  )}
+                  <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>
+                    Dewey: {libro.categoria?.codigo_dewey} — {ubicacionPrincipal(libro.ejemplar)}
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', fontWeight: 'bold', color }}>
+                    {disponibles}/{totalEjemplares} disponibles
+                  </p>
+                </div>
+
+                {/* Botones */}
+                <div style={{ padding: '10px 12px', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => navigate('/prestamos', { state: { libroPreseleccionado: libro, tipoPreseleccionado: 'EXTERNO_INMEDIATO' } })}
+                    style={{
+                      width: '100%', padding: '7px', cursor: 'pointer', fontSize: '13px',
+                      background: disponibles === 0 ? '#e5e7eb' : '#059669',
+                      color: disponibles === 0 ? '#9ca3af' : 'white',
+                      border: 'none', borderRadius: '4px',
+                    }}
+                    disabled={disponibles === 0}
+                  >
+                    Préstamo inmediato
+                  </button>
+                  {libro.categoria?.permite_prestamo_formal === true && (
+  <button
+    onClick={() => navigate('/prestamos', { state: { libroPreseleccionado: libro, tipoPreseleccionado: 'FORMAL' } })}
+    style={{
+      width: '100%', padding: '7px', cursor: 'pointer', fontSize: '13px',
+      background: disponibles === 0 ? '#e5e7eb' : '#1d4ed8',
+      color: disponibles === 0 ? '#9ca3af' : 'white',
+      border: 'none', borderRadius: '4px',
+    }}
+    disabled={disponibles === 0}
+  >
+    Préstamo formal
+  </button>
+)}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      ))}
+      )}
+
+      {totalPaginas > 1 && (
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => handlePagina(pagina - 1)}
+            disabled={pagina === 1}
+            style={{ padding: '6px 14px', cursor: pagina === 1 ? 'default' : 'pointer' }}
+          >
+            ← Anterior
+          </button>
+          <span style={{ fontSize: '14px' }}>Página {pagina} de {totalPaginas}</span>
+          <button
+            onClick={() => handlePagina(pagina + 1)}
+            disabled={pagina === totalPaginas}
+            style={{ padding: '6px 14px', cursor: pagina === totalPaginas ? 'default' : 'pointer' }}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
