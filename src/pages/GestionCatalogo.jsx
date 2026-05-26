@@ -1,18 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Archive,
+  BookOpen,
+  Building2,
+  CheckCircle2,
+  Edit3,
+  Library,
+  Plus,
+  RotateCcw,
+  Save,
+  Settings,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+
+const VISTAS = [
+  { id: 'titulos', label: 'Títulos', icon: BookOpen },
+  { id: 'formulario', label: 'Nuevo título / ejemplares', icon: Plus },
+  { id: 'establecimientos', label: 'Establecimientos', icon: Building2 },
+  { id: 'configuracion', label: 'Config. multas', icon: Settings },
+]
 
 export default function GestionCatalogo() {
   const { usuario } = useAuth()
   const [vista, setVista] = useState('titulos')
+  const [modoFormulario, setModoFormulario] = useState('titulo')
   const [categorias, setCategorias] = useState([])
   const [titulos, setTitulos] = useState([])
   const [niveles, setNiveles] = useState([])
   const [establecimientos, setEstablecimientos] = useState([])
   const [mensaje, setMensaje] = useState({ texto: '', error: false })
   const [guardando, setGuardando] = useState(false)
+  const [mostrarTitulosBaja, setMostrarTitulosBaja] = useState(false)
+  const [mostrarEstablecimientosBaja, setMostrarEstablecimientosBaja] = useState(false)
 
-  // Título — nuevo y edición
   const [editandoTitulo, setEditandoTitulo] = useState(null)
   const [tituloNombre, setTituloNombre] = useState('')
   const [autor, setAutor] = useState('')
@@ -21,59 +42,40 @@ export default function GestionCatalogo() {
   const [idCategoria, setIdCategoria] = useState('')
   const [imagenUrl, setImagenUrl] = useState('')
 
-  // Ejemplar — múltiples
   const [idTituloEjemplar, setIdTituloEjemplar] = useState('')
   const [ubicacionDewey, setUbicacionDewey] = useState('')
   const [cantidadEjemplares, setCantidadEjemplares] = useState(1)
-  const [codigosEjemplares, setCodigosEjemplares] = useState([''])
-  const [autoGenerar, setAutoGenerar] = useState(false)
+  const [codigosEjemplares, setCodigosEjemplares] = useState([])
 
-  // Configuración multa
   const [config, setConfig] = useState(null)
   const [cfgBase, setCfgBase] = useState('')
   const [cfgDia, setCfgDia] = useState('')
   const [cfgLeve, setCfgLeve] = useState('')
   const [cfgGrave, setCfgGrave] = useState('')
 
-  // Establecimiento — nuevo y edición
   const [editandoEstablecimiento, setEditandoEstablecimiento] = useState(null)
   const [nombreEstablecimiento, setNombreEstablecimiento] = useState('')
   const [nivelesSeleccionados, setNivelesSeleccionados] = useState([])
 
-  useEffect(() => {
-    cargarCategorias()
-    cargarTitulos()
-    cargarNiveles()
-    cargarEstablecimientos()
-  }, [])
-
-  useEffect(() => {
-    if (vista === 'configuracion') cargarConfig()
-  }, [vista])
-
-  useEffect(() => {
-    if (autoGenerar) generarCodigosAuto()
-  }, [cantidadEjemplares, autoGenerar])
-
-  async function cargarCategorias() {
+  const cargarCategorias = useCallback(async () => {
     const { data } = await supabase.from('categoria').select('*').order('codigo_dewey')
     setCategorias(data || [])
-  }
+  }, [])
 
-  async function cargarTitulos() {
+  const cargarTitulos = useCallback(async () => {
     const { data } = await supabase
       .from('titulo')
-      .select('id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url, activo, id_categoria, categoria (nombre, codigo_dewey), ejemplar (id_ejemplar, estado)')
+      .select('id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url, activo, id_categoria, categoria (nombre, codigo_dewey), ejemplar (id_ejemplar, codigo_inventario, estado)')
       .order('titulo')
     setTitulos(data || [])
-  }
+  }, [])
 
-  async function cargarNiveles() {
+  const cargarNiveles = useCallback(async () => {
     const { data } = await supabase.from('niveleducativo').select('*').order('id_nivel')
     setNiveles(data || [])
-  }
+  }, [])
 
-  async function cargarEstablecimientos() {
+  const cargarEstablecimientos = useCallback(async () => {
     const { data } = await supabase
       .from('establecimiento')
       .select(`
@@ -82,9 +84,9 @@ export default function GestionCatalogo() {
       `)
       .order('nombre')
     setEstablecimientos(data || [])
-  }
+  }, [])
 
-  async function cargarConfig() {
+  const cargarConfig = useCallback(async () => {
     const { data } = await supabase.from('configuracionmulta').select('*').single()
     if (data) {
       setConfig(data)
@@ -93,69 +95,131 @@ export default function GestionCatalogo() {
       setCfgLeve(data.cargo_daño_leve)
       setCfgGrave(data.cargo_daño_grave)
     }
-  }
+  }, [])
 
-  async function obtenerUltimoCodigoEJ() {
+  const construirCodigosAuto = useCallback(async (cantidad) => {
     const { data } = await supabase
       .from('ejemplar')
       .select('codigo_inventario')
       .ilike('codigo_inventario', 'EJ-%')
-      .order('codigo_inventario', { ascending: false })
-      .limit(1)
 
-    if (!data || data.length === 0) return 0
-    const ultimo = data[0].codigo_inventario
-    const num = parseInt(ultimo.replace('EJ-', ''))
-    return isNaN(num) ? 0 : num
-  }
+    const ultimo = (data || []).reduce((max, item) => {
+      const numero = parseInt(String(item.codigo_inventario || '').replace('EJ-', ''), 10)
+      return Number.isNaN(numero) ? max : Math.max(max, numero)
+    }, 0)
 
-  async function generarCodigosAuto() {
-    const ultimo = await obtenerUltimoCodigoEJ()
-    const nuevos = Array.from({ length: cantidadEjemplares }, (_, i) => {
-      const num = ultimo + i + 1
-      return `EJ-${String(num).padStart(3, '0')}`
-    })
+    return Array.from({ length: cantidad }, (_, i) => `EJ-${String(ultimo + i + 1).padStart(3, '0')}`)
+  }, [])
+
+  const refrescarVistaCodigos = useCallback(async (cantidad = cantidadEjemplares) => {
+    const nuevos = await construirCodigosAuto(cantidad)
     setCodigosEjemplares(nuevos)
-  }
+  }, [cantidadEjemplares, construirCodigosAuto])
 
-  function handleCantidad(val) {
-    const n = Math.min(20, Math.max(1, parseInt(val) || 1))
-    setCantidadEjemplares(n)
-    if (!autoGenerar) {
-      setCodigosEjemplares(prev => {
-        const arr = [...prev]
-        while (arr.length < n) arr.push('')
-        return arr.slice(0, n)
-      })
+  useEffect(() => {
+    cargarCategorias()
+    cargarTitulos()
+    cargarNiveles()
+    cargarEstablecimientos()
+  }, [cargarCategorias, cargarEstablecimientos, cargarNiveles, cargarTitulos])
+
+  useEffect(() => {
+    if (vista === 'configuracion') cargarConfig()
+  }, [vista, cargarConfig])
+
+  useEffect(() => {
+    refrescarVistaCodigos()
+  }, [refrescarVistaCodigos])
+
+  const titulosActivos = useMemo(() => titulos.filter(t => t.activo), [titulos])
+  const titulosBaja = useMemo(() => titulos.filter(t => !t.activo), [titulos])
+  const establecimientosActivos = useMemo(() => establecimientos.filter(e => e.activo), [establecimientos])
+  const establecimientosBaja = useMemo(() => establecimientos.filter(e => !e.activo), [establecimientos])
+
+  const resumenCatalogo = useMemo(() => {
+    const ejemplares = titulos.flatMap(t => t.ejemplar || [])
+    return {
+      titulos: titulosActivos.length,
+      ejemplares: ejemplares.length,
+      disponibles: ejemplares.filter(e => e.estado === 'DISPONIBLE').length,
+      fueraServicio: ejemplares.filter(e => e.estado === 'FUERA_DE_SERVICIO').length,
     }
+  }, [titulos, titulosActivos])
+
+  function limpiarMensaje() {
+    setMensaje({ texto: '', error: false })
   }
 
-  function handleCodigo(i, val) {
-    setCodigosEjemplares(prev => {
-      const arr = [...prev]
-      arr[i] = val
-      return arr
-    })
-  }
-
-  // --- Título ---
-  function abrirNuevoTitulo() {
+  function resetTitulo() {
     setEditandoTitulo(null)
-    setTituloNombre(''); setAutor(''); setIsbn(''); setAnio(''); setIdCategoria(''); setImagenUrl('')
-    setVista('nuevo_titulo')
-    setMensaje({ texto: '', error: false })
+    setTituloNombre('')
+    setAutor('')
+    setIsbn('')
+    setAnio('')
+    setIdCategoria('')
+    setImagenUrl('')
+    setUbicacionDewey('')
+    setCantidadEjemplares(1)
+    refrescarVistaCodigos(1)
   }
 
-  function abrirEditarTitulo(t) {
-    setEditandoTitulo(t)
-    setTituloNombre(t.titulo)
-    setAutor(t.autor)
-    setIsbn(t.isbn || '')
-    setAnio(t.anio_publicacion || '')
-    setIdCategoria(String(t.id_categoria))
-    setImagenUrl(t.imagen_url || '')
-    setVista('nuevo_titulo')
-    setMensaje({ texto: '', error: false })
+  function abrirNuevoTitulo() {
+    resetTitulo()
+    setModoFormulario('titulo')
+    setVista('formulario')
+    limpiarMensaje()
+  }
+
+  function abrirEditarTitulo(titulo) {
+    setEditandoTitulo(titulo)
+    setTituloNombre(titulo.titulo)
+    setAutor(titulo.autor)
+    setIsbn(titulo.isbn || '')
+    setAnio(titulo.anio_publicacion || '')
+    setIdCategoria(String(titulo.id_categoria))
+    setImagenUrl(titulo.imagen_url || '')
+    setUbicacionDewey(titulo.categoria?.codigo_dewey || '')
+    setModoFormulario('titulo')
+    setVista('formulario')
+    limpiarMensaje()
+  }
+
+  function seleccionarCategoria(valor) {
+    setIdCategoria(valor)
+    const categoria = categorias.find(c => String(c.id_categoria) === valor)
+    setUbicacionDewey(categoria?.codigo_dewey || '')
+  }
+
+  function abrirAgregarEjemplares(titulo) {
+    setEditandoTitulo(null)
+    setIdTituloEjemplar(String(titulo.id_titulo))
+    setUbicacionDewey(titulo.categoria?.codigo_dewey || '')
+    setCantidadEjemplares(1)
+    refrescarVistaCodigos(1)
+    setModoFormulario('ejemplar')
+    setVista('formulario')
+    limpiarMensaje()
+  }
+
+  function cambiarCantidad(valor) {
+    const cantidad = Math.min(200, Math.max(1, parseInt(valor, 10) || 1))
+    setCantidadEjemplares(cantidad)
+    refrescarVistaCodigos(cantidad)
+  }
+
+  async function insertarEjemplares(idTitulo, ubicacion, cantidad) {
+    const codigos = await construirCodigosAuto(cantidad)
+    const filas = codigos.map(codigo => ({
+      id_titulo: idTitulo,
+      codigo_inventario: codigo,
+      ubicacion_dewey: ubicacion.trim(),
+      estado: 'DISPONIBLE',
+    }))
+
+    const { error } = await supabase.from('ejemplar').insert(filas)
+    if (error) throw error
+    setCodigosEjemplares(codigos)
+    return codigos
   }
 
   async function guardarTitulo() {
@@ -163,83 +227,97 @@ export default function GestionCatalogo() {
       setMensaje({ texto: 'Título, autor y categoría son obligatorios.', error: true })
       return
     }
+
+    if (!editandoTitulo && !ubicacionDewey.trim()) {
+      setMensaje({ texto: 'La ubicación Dewey es obligatoria para crear el primer ejemplar.', error: true })
+      return
+    }
+
     setGuardando(true)
     const payload = {
-      titulo: tituloNombre, autor,
-      isbn: isbn || null,
-      anio_publicacion: anio ? parseInt(anio) : null,
-      id_categoria: parseInt(idCategoria),
-      imagen_url: imagenUrl || null,
+      titulo: tituloNombre.trim(),
+      autor: autor.trim(),
+      isbn: isbn.trim() || null,
+      anio_publicacion: anio ? parseInt(anio, 10) : null,
+      id_categoria: parseInt(idCategoria, 10),
+      imagen_url: imagenUrl.trim() || null,
     }
-    let error
-    if (editandoTitulo) {
-      ;({ error } = await supabase.from('titulo').update(payload).eq('id_titulo', editandoTitulo.id_titulo))
-    } else {
-      ;({ error } = await supabase.from('titulo').insert({ ...payload, activo: true }))
+
+    try {
+      if (editandoTitulo) {
+        const { error } = await supabase.from('titulo').update(payload).eq('id_titulo', editandoTitulo.id_titulo)
+        if (error) throw error
+        setMensaje({ texto: 'Título actualizado.', error: false })
+      } else {
+        const { data, error } = await supabase
+          .from('titulo')
+          .insert({ ...payload, activo: true })
+          .select('id_titulo')
+          .single()
+        if (error) throw error
+        await insertarEjemplares(data.id_titulo, ubicacionDewey, cantidadEjemplares)
+        setMensaje({ texto: `Título registrado con ${cantidadEjemplares} ejemplar(es) generado(s).`, error: false })
+      }
+
+      setTimeout(() => limpiarMensaje(), 3000)
+      resetTitulo()
+      setVista('titulos')
+      await cargarTitulos()
+    } catch (error) {
+      console.error('Error guardando título:', error)
+      setMensaje({ texto: 'Error al guardar. Verifique los datos o códigos duplicados.', error: true })
+    } finally {
+      setGuardando(false)
     }
-    if (error) {
-      setMensaje({ texto: 'Error al guardar. Verifique los datos.', error: true })
-    } else {
-      setMensaje({ texto: editandoTitulo ? 'Título actualizado.' : 'Título registrado.', error: false })
-      setTimeout(() => setMensaje({ texto: '', error: false }), 3000)
-      setEditandoTitulo(null)
-      setTituloNombre(''); setAutor(''); setIsbn(''); setAnio(''); setIdCategoria(''); setImagenUrl('')
-      cargarTitulos()
-    }
-    setGuardando(false)
   }
 
-  async function darDeBajaTitulo(id) {
-    if (!confirm('¿Dar de baja este título?')) return
-    await supabase.from('titulo').update({ activo: false }).eq('id_titulo', id)
-    cargarTitulos()
-  }
-
-  // --- Ejemplar ---
   async function guardarEjemplares() {
     if (!idTituloEjemplar || !ubicacionDewey.trim()) {
       setMensaje({ texto: 'Título y ubicación Dewey son obligatorios.', error: true })
       return
     }
-    const codigos = codigosEjemplares.slice(0, cantidadEjemplares)
-    if (codigos.some(c => !c.trim())) {
-      setMensaje({ texto: 'Todos los códigos de inventario son obligatorios.', error: true })
-      return
-    }
+
     setGuardando(true)
-    const filas = codigos.map(c => ({
-      id_titulo: parseInt(idTituloEjemplar),
-      codigo_inventario: c.trim(),
-      ubicacion_dewey: ubicacionDewey,
-      estado: 'DISPONIBLE',
-    }))
-    const { error } = await supabase.from('ejemplar').insert(filas)
-    if (error) {
+    try {
+      await insertarEjemplares(parseInt(idTituloEjemplar, 10), ubicacionDewey, cantidadEjemplares)
+      setMensaje({ texto: `${cantidadEjemplares} ejemplar(es) registrado(s) con código automático.`, error: false })
+      setTimeout(() => limpiarMensaje(), 3000)
+      setIdTituloEjemplar('')
+      setUbicacionDewey('')
+      setCantidadEjemplares(1)
+      await refrescarVistaCodigos(1)
+      await cargarTitulos()
+    } catch (error) {
+      console.error('Error guardando ejemplares:', error)
       setMensaje({ texto: 'Error al guardar. Algún código puede estar duplicado.', error: true })
-    } else {
-      setMensaje({ texto: `${cantidadEjemplares} ejemplar(es) registrado(s).`, error: false })
-      setTimeout(() => setMensaje({ texto: '', error: false }), 3000)
-      setIdTituloEjemplar(''); setUbicacionDewey(''); setCantidadEjemplares(1)
-      setCodigosEjemplares(['']); setAutoGenerar(false)
-      cargarTitulos()
+    } finally {
+      setGuardando(false)
     }
-    setGuardando(false)
   }
 
-  // --- Establecimiento ---
+  async function darDeBajaTitulo(id) {
+    if (!confirm('¿Dar de baja este título?')) return
+    await supabase.from('titulo').update({ activo: false }).eq('id_titulo', id)
+    await cargarTitulos()
+  }
+
+  async function reactivarTitulo(id) {
+    await supabase.from('titulo').update({ activo: true }).eq('id_titulo', id)
+    await cargarTitulos()
+  }
+
   function abrirNuevoEstablecimiento() {
     setEditandoEstablecimiento(null)
     setNombreEstablecimiento('')
     setNivelesSeleccionados([])
-    setVista('establecimientos')
-    setMensaje({ texto: '', error: false })
+    limpiarMensaje()
   }
 
   function abrirEditarEstablecimiento(est) {
     setEditandoEstablecimiento(est)
     setNombreEstablecimiento(est.nombre)
     setNivelesSeleccionados(est.establecimiento_nivel?.map(en => en.id_nivel) || [])
-    setMensaje({ texto: '', error: false })
+    limpiarMensaje()
   }
 
   function toggleNivel(idNivel) {
@@ -253,55 +331,58 @@ export default function GestionCatalogo() {
       setMensaje({ texto: 'Nombre y al menos un nivel son obligatorios.', error: true })
       return
     }
+
     setGuardando(true)
-    let idEst
+    let idEstablecimiento
 
-    if (editandoEstablecimiento) {
-      const { error } = await supabase
-        .from('establecimiento')
-        .update({ nombre: nombreEstablecimiento })
-        .eq('id_establecimiento', editandoEstablecimiento.id_establecimiento)
-      if (error) {
-        setMensaje({ texto: 'Error al actualizar.', error: true })
-        setGuardando(false)
-        return
+    try {
+      if (editandoEstablecimiento) {
+        const { error } = await supabase
+          .from('establecimiento')
+          .update({ nombre: nombreEstablecimiento.trim() })
+          .eq('id_establecimiento', editandoEstablecimiento.id_establecimiento)
+        if (error) throw error
+        idEstablecimiento = editandoEstablecimiento.id_establecimiento
+        await supabase.from('establecimiento_nivel').delete().eq('id_establecimiento', idEstablecimiento)
+      } else {
+        const { data, error } = await supabase
+          .from('establecimiento')
+          .insert({ nombre: nombreEstablecimiento.trim(), activo: true })
+          .select('id_establecimiento')
+          .single()
+        if (error) throw error
+        idEstablecimiento = data.id_establecimiento
       }
-      idEst = editandoEstablecimiento.id_establecimiento
-      await supabase.from('establecimiento_nivel').delete().eq('id_establecimiento', idEst)
-    } else {
-      const { data, error } = await supabase
-        .from('establecimiento')
-        .insert({ nombre: nombreEstablecimiento, activo: true })
-        .select('id_establecimiento')
-        .single()
-      if (error) {
-        setMensaje({ texto: 'Error al guardar.', error: true })
-        setGuardando(false)
-        return
-      }
-      idEst = data.id_establecimiento
+
+      const filas = nivelesSeleccionados.map(idNivel => ({ id_establecimiento: idEstablecimiento, id_nivel: idNivel }))
+      const { error: errorNiveles } = await supabase.from('establecimiento_nivel').insert(filas)
+      if (errorNiveles) throw errorNiveles
+
+      setMensaje({ texto: editandoEstablecimiento ? 'Establecimiento actualizado.' : 'Establecimiento registrado.', error: false })
+      setTimeout(() => limpiarMensaje(), 3000)
+      abrirNuevoEstablecimiento()
+      await cargarEstablecimientos()
+    } catch (error) {
+      console.error('Error guardando establecimiento:', error)
+      setMensaje({ texto: 'Error al guardar establecimiento.', error: true })
+    } finally {
+      setGuardando(false)
     }
-
-    const filas = nivelesSeleccionados.map(idNivel => ({ id_establecimiento: idEst, id_nivel: idNivel }))
-    await supabase.from('establecimiento_nivel').insert(filas)
-
-    setMensaje({ texto: editandoEstablecimiento ? 'Establecimiento actualizado.' : 'Establecimiento registrado.', error: false })
-    setTimeout(() => setMensaje({ texto: '', error: false }), 3000)
-    setEditandoEstablecimiento(null)
-    setNombreEstablecimiento('')
-    setNivelesSeleccionados([])
-    cargarEstablecimientos()
-    setGuardando(false)
   }
 
   async function darDeBajaEstablecimiento(id) {
     if (!confirm('¿Dar de baja este establecimiento?')) return
     await supabase.from('establecimiento').update({ activo: false }).eq('id_establecimiento', id)
-    cargarEstablecimientos()
+    await cargarEstablecimientos()
   }
 
-  // --- Config multa ---
+  async function reactivarEstablecimiento(id) {
+    await supabase.from('establecimiento').update({ activo: true }).eq('id_establecimiento', id)
+    await cargarEstablecimientos()
+  }
+
   async function guardarConfig() {
+    if (!config) return
     setGuardando(true)
     const { error } = await supabase
       .from('configuracionmulta')
@@ -314,304 +395,530 @@ export default function GestionCatalogo() {
         actualizado_en: new Date().toISOString(),
       })
       .eq('id_config', config.id_config)
+
     setMensaje(error
       ? { texto: 'Error al guardar configuración.', error: true }
       : { texto: 'Configuración actualizada.', error: false }
     )
-    if (!error) setTimeout(() => setMensaje({ texto: '', error: false }), 3000)
+    if (!error) setTimeout(() => limpiarMensaje(), 3000)
     setGuardando(false)
   }
 
-  const inputStyle = { padding: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: '13px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }
-  const fieldStyle = { marginBottom: '12px' }
+  const inputStyle = {
+    width: '100%',
+    border: '1px solid #dbe3ef',
+    borderRadius: '10px',
+    padding: '11px 12px',
+    fontSize: '14px',
+    color: '#0f172a',
+    background: 'white',
+    boxSizing: 'border-box',
+    outline: 'none',
+  }
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '12px',
+    fontWeight: 800,
+    color: '#475569',
+    marginBottom: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.02em',
+  }
+
+  const panelStyle = {
+    background: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '16px',
+    boxShadow: '0 18px 40px rgba(15, 23, 42, 0.06)',
+  }
+
+  const primaryButton = {
+    border: 'none',
+    borderRadius: '10px',
+    background: '#2563eb',
+    color: 'white',
+    padding: '11px 16px',
+    fontSize: '14px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+  }
+
+  const secondaryButton = {
+    border: '1px solid #cbd5e1',
+    borderRadius: '10px',
+    background: 'white',
+    color: '#334155',
+    padding: '10px 14px',
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+  }
+
+  const dangerButton = {
+    ...secondaryButton,
+    color: '#b91c1c',
+    borderColor: '#fecaca',
+    background: '#fff7f7',
+  }
+
   const tabStyle = (activo) => ({
-    padding: '8px 14px', cursor: 'pointer', marginRight: '4px', marginBottom: '4px',
-    background: activo ? '#1d4ed8' : '#e5e7eb',
-    color: activo ? 'white' : 'black',
-    border: 'none', borderRadius: '4px', fontSize: '13px'
+    border: 'none',
+    borderRadius: '12px',
+    background: activo ? '#0f172a' : 'transparent',
+    color: activo ? 'white' : '#475569',
+    padding: '10px 14px',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    fontWeight: 800,
   })
 
-  return (
-    <div style={{ padding: '32px', maxWidth: '1000px' }}>
-      <h1>Gestión de catálogo</h1>
+  const metricas = [
+    { label: 'Títulos activos', value: resumenCatalogo.titulos, icon: BookOpen, color: '#2563eb' },
+    { label: 'Ejemplares', value: resumenCatalogo.ejemplares, icon: Library, color: '#059669' },
+    { label: 'Disponibles', value: resumenCatalogo.disponibles, icon: CheckCircle2, color: '#16a34a' },
+    { label: 'Fuera de servicio', value: resumenCatalogo.fueraServicio, icon: Archive, color: '#dc2626' },
+  ]
 
-      <div style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-        <button style={tabStyle(vista === 'titulos')} onClick={() => { setVista('titulos'); setMensaje({ texto: '', error: false }) }}>Ver títulos</button>
-        <button style={tabStyle(vista === 'nuevo_titulo')} onClick={abrirNuevoTitulo}>Nuevo título</button>
-        <button style={tabStyle(vista === 'nuevo_ejemplar')} onClick={() => { setVista('nuevo_ejemplar'); setMensaje({ texto: '', error: false }) }}>Nuevo ejemplar</button>
-        <button style={tabStyle(vista === 'establecimientos')} onClick={() => { setVista('establecimientos'); setEditandoEstablecimiento(null); setNombreEstablecimiento(''); setNivelesSeleccionados([]); setMensaje({ texto: '', error: false }) }}>Establecimientos</button>
-        <button style={tabStyle(vista === 'configuracion')} onClick={() => { setVista('configuracion'); setMensaje({ texto: '', error: false }) }}>Config. multas</button>
-      </div>
+  function renderTitleRow(titulo, esBaja = false) {
+    const ejemplares = titulo.ejemplar || []
+    const disponibles = ejemplares.filter(e => e.estado === 'DISPONIBLE').length
+    const prestados = ejemplares.filter(e => e.estado === 'PRESTADO').length
+    const fueraServicio = ejemplares.filter(e => e.estado === 'FUERA_DE_SERVICIO').length
 
-      {mensaje.texto && (
-        <p style={{ color: mensaje.error ? '#dc2626' : '#16a34a', fontWeight: 'bold', marginBottom: '16px' }}>
-          {mensaje.texto}
-        </p>
-      )}
-
-      {/* TÍTULOS */}
-      {vista === 'titulos' && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
-              <th style={{ padding: '8px' }}>Título</th>
-              <th style={{ padding: '8px' }}>Autor</th>
-              <th style={{ padding: '8px' }}>Categoría</th>
-              <th style={{ padding: '8px' }}>Ejemplares</th>
-              <th style={{ padding: '8px' }}>Estado</th>
-              <th style={{ padding: '8px' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {titulos.map(t => (
-              <tr key={t.id_titulo} style={{ borderBottom: '1px solid #eee', opacity: t.activo ? 1 : 0.5 }}>
-                <td style={{ padding: '8px' }}>{t.titulo}</td>
-                <td style={{ padding: '8px' }}>{t.autor}</td>
-                <td style={{ padding: '8px' }}>{t.categoria?.nombre}</td>
-                <td style={{ padding: '8px' }}>{t.ejemplar?.length || 0}</td>
-                <td style={{ padding: '8px' }}>{t.activo ? 'Activo' : 'Baja'}</td>
-                <td style={{ padding: '8px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => abrirEditarTitulo(t)} style={{ cursor: 'pointer', padding: '4px 10px' }}>
-                    Editar
-                  </button>
-                  {t.activo && (
-                    <button onClick={() => darDeBajaTitulo(t.id_titulo)} style={{ cursor: 'pointer', padding: '4px 10px', color: '#dc2626' }}>
-                      Baja
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* NUEVO / EDITAR TÍTULO */}
-      {vista === 'nuevo_titulo' && (
-        <div style={{ maxWidth: '500px' }}>
-          <h3>{editandoTitulo ? 'Editar título' : 'Nuevo título'}</h3>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Título *</label>
-            <input style={inputStyle} value={tituloNombre} onChange={e => setTituloNombre(e.target.value)} />
+    return (
+      <tr key={titulo.id_titulo} style={{ borderBottom: '1px solid #edf2f7' }}>
+        <td style={{ padding: '14px 10px' }}>
+          <strong style={{ display: 'block', color: '#0f172a' }}>{titulo.titulo}</strong>
+          <span style={{ color: '#64748b', fontSize: '13px' }}>{titulo.autor}</span>
+        </td>
+        <td style={{ padding: '14px 10px', color: '#475569' }}>
+          <span style={{ display: 'block', fontWeight: 700 }}>{titulo.categoria?.nombre || 'Sin categoría'}</span>
+          <span style={{ fontSize: '12px', color: '#94a3b8' }}>{titulo.categoria?.codigo_dewey || 'Sin Dewey'}</span>
+        </td>
+        <td style={{ padding: '14px 10px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <span style={pill('#dbeafe', '#1d4ed8')}>{ejemplares.length} total</span>
+            <span style={pill('#dcfce7', '#15803d')}>{disponibles} disp.</span>
+            {prestados > 0 && <span style={pill('#fef3c7', '#92400e')}>{prestados} prest.</span>}
+            {fueraServicio > 0 && <span style={pill('#fee2e2', '#991b1b')}>{fueraServicio} fuera</span>}
           </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Autor *</label>
-            <input style={inputStyle} value={autor} onChange={e => setAutor(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Categoría *</label>
-            <select style={inputStyle} value={idCategoria} onChange={e => setIdCategoria(e.target.value)}>
-              <option value="">Seleccione...</option>
-              {categorias.map(c => (
-                <option key={c.id_categoria} value={c.id_categoria}>{c.codigo_dewey} — {c.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>ISBN</label>
-            <input style={inputStyle} value={isbn} onChange={e => setIsbn(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Año de publicación</label>
-            <input style={inputStyle} type="number" value={anio} onChange={e => setAnio(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>URL de imagen</label>
-            <input style={inputStyle} value={imagenUrl} onChange={e => setImagenUrl(e.target.value)} placeholder="https://..." />
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={guardarTitulo} disabled={guardando} style={{ padding: '10px 24px', cursor: 'pointer' }}>
-              {guardando ? 'Guardando...' : editandoTitulo ? 'Actualizar' : 'Guardar título'}
-            </button>
-            <button onClick={() => { setVista('titulos'); setEditandoTitulo(null); setMensaje({ texto: '', error: false }) }} style={{ padding: '10px 16px', cursor: 'pointer' }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* NUEVO EJEMPLAR */}
-      {vista === 'nuevo_ejemplar' && (
-        <div style={{ maxWidth: '540px' }}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Título *</label>
-            <select
-              style={inputStyle}
-              value={idTituloEjemplar}
-              onChange={e => {
-                setIdTituloEjemplar(e.target.value)
-                if (e.target.value) {
-                  const tituloSeleccionado = titulos.find(t => t.id_titulo === parseInt(e.target.value))
-                  if (tituloSeleccionado?.categoria?.codigo_dewey) {
-                    setUbicacionDewey(tituloSeleccionado.categoria.codigo_dewey)
-                  }
-                } else {
-                  setUbicacionDewey('')
-                }
-              }}
-            >
-              <option value="">Seleccione...</option>
-              {titulos.filter(t => t.activo).map(t => (
-                <option key={t.id_titulo} value={t.id_titulo}>{t.titulo}</option>
-              ))}
-            </select>
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Ubicación Dewey *</label>
-            <input style={inputStyle} value={ubicacionDewey} onChange={e => setUbicacionDewey(e.target.value)} placeholder="ej: 863.44/G217" />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>¿Cuántos ejemplares? (1–20)</label>
-            <input
-              style={{ ...inputStyle, width: '80px' }}
-              type="number" min="1" max="20"
-              value={cantidadEjemplares}
-              onChange={e => handleCantidad(e.target.value)}
-            />
-          </div>
-          <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input
-              type="checkbox"
-              id="autoGenerar"
-              checked={autoGenerar}
-              onChange={e => {
-                setAutoGenerar(e.target.checked)
-                if (!e.target.checked) {
-                  setCodigosEjemplares(Array.from({ length: cantidadEjemplares }, () => ''))
-                }
-              }}
-            />
-            <label htmlFor="autoGenerar" style={{ fontSize: '13px', cursor: 'pointer' }}>
-              Generar códigos automáticamente (formato EJ-XXX)
-            </label>
-          </div>
-
-          {Array.from({ length: cantidadEjemplares }).map((_, i) => (
-            <div key={i} style={{ ...fieldStyle }}>
-              <label style={labelStyle}>Código ejemplar {i + 1} *</label>
-              <input
-                style={inputStyle}
-                value={codigosEjemplares[i] || ''}
-                onChange={e => handleCodigo(i, e.target.value)}
-                readOnly={autoGenerar}
-                placeholder={autoGenerar ? 'Se generará automáticamente' : 'ej: EJ-008'}
-              />
-            </div>
-          ))}
-
-          <button onClick={guardarEjemplares} disabled={guardando} style={{ padding: '10px 24px', cursor: 'pointer' }}>
-            {guardando ? 'Guardando...' : `Guardar ${cantidadEjemplares} ejemplar(es)`}
-          </button>
-        </div>
-      )}
-
-      {/* ESTABLECIMIENTOS */}
-      {vista === 'establecimientos' && (
-        <div>
-          <div style={{ maxWidth: '500px', marginBottom: '32px', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-            <h3 style={{ margin: '0 0 16px 0' }}>
-              {editandoEstablecimiento ? `Editando: ${editandoEstablecimiento.nombre}` : 'Agregar establecimiento'}
-            </h3>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Nombre *</label>
-              <input style={inputStyle} value={nombreEstablecimiento} onChange={e => setNombreEstablecimiento(e.target.value)} />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Niveles educativos * (puede seleccionar varios)</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                {niveles.map(n => (
-                  <label key={n.id_nivel} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={nivelesSeleccionados.includes(n.id_nivel)}
-                      onChange={() => toggleNivel(n.id_nivel)}
-                    />
-                    {n.nombre}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={guardarEstablecimiento} disabled={guardando} style={{ padding: '8px 20px', cursor: 'pointer' }}>
-                {guardando ? 'Guardando...' : editandoEstablecimiento ? 'Actualizar' : 'Agregar'}
-              </button>
-              {editandoEstablecimiento && (
-                <button onClick={() => { setEditandoEstablecimiento(null); setNombreEstablecimiento(''); setNivelesSeleccionados([]) }} style={{ padding: '8px 16px', cursor: 'pointer' }}>
-                  Cancelar
+        </td>
+        <td style={{ padding: '14px 10px', textAlign: 'right' }}>
+          <div style={{ display: 'inline-flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!esBaja && (
+              <>
+                <button style={secondaryButton} onClick={() => abrirEditarTitulo(titulo)}>
+                  <Edit3 size={16} /> Editar
                 </button>
+                <button style={secondaryButton} onClick={() => abrirAgregarEjemplares(titulo)}>
+                  <Library size={16} /> Añadir copias
+                </button>
+                <button style={dangerButton} onClick={() => darDeBajaTitulo(titulo.id_titulo)}>
+                  <Archive size={16} /> Baja
+                </button>
+              </>
+            )}
+            {esBaja && (
+              <button style={secondaryButton} onClick={() => reactivarTitulo(titulo.id_titulo)}>
+                <RotateCcw size={16} /> Reactivar
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  function renderEstablecimientoRow(est, esBaja = false) {
+    return (
+      <tr key={est.id_establecimiento} style={{ borderBottom: '1px solid #edf2f7' }}>
+        <td style={{ padding: '14px 10px' }}>
+          <strong style={{ color: '#0f172a' }}>{est.nombre}</strong>
+        </td>
+        <td style={{ padding: '14px 10px', color: '#475569', fontSize: '13px' }}>
+          {est.establecimiento_nivel?.map(en => en.niveleducativo?.nombre).filter(Boolean).join(', ') || 'Sin niveles'}
+        </td>
+        <td style={{ padding: '14px 10px', textAlign: 'right' }}>
+          <div style={{ display: 'inline-flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!esBaja && (
+              <>
+                <button style={secondaryButton} onClick={() => abrirEditarEstablecimiento(est)}>
+                  <Edit3 size={16} /> Editar
+                </button>
+                <button style={dangerButton} onClick={() => darDeBajaEstablecimiento(est.id_establecimiento)}>
+                  <Archive size={16} /> Baja
+                </button>
+              </>
+            )}
+            {esBaja && (
+              <button style={secondaryButton} onClick={() => reactivarEstablecimiento(est.id_establecimiento)}>
+                <RotateCcw size={16} /> Reactivar
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  function pill(background, color) {
+    return {
+      display: 'inline-flex',
+      alignItems: 'center',
+      borderRadius: '999px',
+      background,
+      color,
+      padding: '5px 9px',
+      fontSize: '12px',
+      fontWeight: 800,
+    }
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '28px', color: '#0f172a' }}>
+      <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px' }}>
+          <div>
+            <span style={{ ...pill('#e0f2fe', '#0369a1'), marginBottom: '10px' }}>Administración</span>
+            <h1 style={{ margin: '0 0 6px', fontSize: '32px', letterSpacing: 0 }}>Gestión de catálogo</h1>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '15px' }}>
+              Registra títulos, genera ejemplares y mantiene ordenado el inventario de la biblioteca.
+            </p>
+          </div>
+          <button style={primaryButton} onClick={abrirNuevoTitulo}>
+            <Plus size={18} /> Nuevo título
+          </button>
+        </header>
+
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+          {metricas.map(metrica => {
+            const Icon = metrica.icon
+            return (
+              <article key={metrica.label} style={{ ...panelStyle, padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 800 }}>{metrica.label}</span>
+                  <Icon size={20} color={metrica.color} />
+                </div>
+                <strong style={{ fontSize: '30px', lineHeight: 1 }}>{metrica.value}</strong>
+              </article>
+            )
+          })}
+        </section>
+
+        <nav style={{ ...panelStyle, padding: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '18px' }}>
+          {VISTAS.map(item => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                style={tabStyle(vista === item.id)}
+                onClick={() => {
+                  setVista(item.id)
+                  limpiarMensaje()
+                  if (item.id === 'formulario') {
+                    setModoFormulario(editandoTitulo ? 'titulo' : modoFormulario)
+                  }
+                }}
+              >
+                <Icon size={17} /> {item.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        {mensaje.texto && (
+          <div style={{
+            marginBottom: '18px',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            background: mensaje.error ? '#fef2f2' : '#ecfdf5',
+            color: mensaje.error ? '#991b1b' : '#047857',
+            fontWeight: 800,
+            border: `1px solid ${mensaje.error ? '#fecaca' : '#bbf7d0'}`,
+          }}>
+            {mensaje.texto}
+          </div>
+        )}
+
+        {vista === 'titulos' && (
+          <section style={panelStyle}>
+            <div style={{ padding: '18px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '20px' }}>Títulos activos</h2>
+                <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '14px' }}>Los títulos dados de baja quedan separados al final para consulta.</p>
+              </div>
+              <span style={{ ...pill('#f1f5f9', '#475569'), alignSelf: 'center' }}>
+                Usa “Añadir copias” en cada título
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: '#64748b', fontSize: '12px', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 10px 12px 20px' }}>Título</th>
+                    <th style={{ padding: '12px 10px' }}>Categoría</th>
+                    <th style={{ padding: '12px 10px' }}>Ejemplares</th>
+                    <th style={{ padding: '12px 20px 12px 10px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {titulosActivos.length === 0 ? (
+                    <tr><td colSpan="4" style={{ padding: '24px 20px', color: '#64748b' }}>Sin títulos activos.</td></tr>
+                  ) : titulosActivos.map(titulo => renderTitleRow(titulo))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <button style={secondaryButton} onClick={() => setMostrarTitulosBaja(prev => !prev)}>
+                <Archive size={16} /> Títulos dados de baja ({titulosBaja.length})
+              </button>
+              {mostrarTitulosBaja && (
+                <div style={{ marginTop: '14px', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px', background: 'white', borderRadius: '12px', overflow: 'hidden' }}>
+                    <tbody>
+                      {titulosBaja.length === 0 ? (
+                        <tr><td style={{ padding: '18px', color: '#64748b' }}>No hay títulos dados de baja.</td></tr>
+                      ) : titulosBaja.map(titulo => renderTitleRow(titulo, true))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </div>
+          </section>
+        )}
 
-          <h3 style={{ marginBottom: '12px' }}>Establecimientos registrados</h3>
-          {establecimientos.length === 0 ? (
-            <p style={{ color: '#666' }}>Sin establecimientos.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
-                  <th style={{ padding: '8px' }}>Nombre</th>
-                  <th style={{ padding: '8px' }}>Niveles</th>
-                  <th style={{ padding: '8px' }}>Estado</th>
-                  <th style={{ padding: '8px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {establecimientos.map(e => (
-                  <tr key={e.id_establecimiento} style={{ borderBottom: '1px solid #eee', opacity: e.activo ? 1 : 0.5 }}>
-                    <td style={{ padding: '8px' }}>{e.nombre}</td>
-                    <td style={{ padding: '8px', fontSize: '13px' }}>
-                      {e.establecimiento_nivel?.map(en => en.niveleducativo?.nombre).join(', ') || '—'}
-                    </td>
-                    <td style={{ padding: '8px' }}>{e.activo ? 'Activo' : 'Baja'}</td>
-                    <td style={{ padding: '8px', display: 'flex', gap: '6px' }}>
-                      {e.activo && (
-                        <>
-                          <button onClick={() => abrirEditarEstablecimiento(e)} style={{ cursor: 'pointer', padding: '4px 10px' }}>
-                            Editar
-                          </button>
-                          <button onClick={() => darDeBajaEstablecimiento(e.id_establecimiento)} style={{ cursor: 'pointer', padding: '4px 10px', color: '#dc2626' }}>
-                            Baja
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
+        {vista === 'formulario' && (
+          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            <div style={{ ...panelStyle, padding: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                <button style={tabStyle(modoFormulario === 'titulo')} onClick={() => { setModoFormulario('titulo'); limpiarMensaje() }}>
+                  <BookOpen size={17} /> {editandoTitulo ? 'Editar título' : 'Nuevo título con ejemplares'}
+                </button>
+                <button style={tabStyle(modoFormulario === 'ejemplar')} onClick={() => { setModoFormulario('ejemplar'); setEditandoTitulo(null); limpiarMensaje() }}>
+                  <Library size={17} /> Añadir copias
+                </button>
+              </div>
+
+              {modoFormulario === 'titulo' && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                    <Field label="Título *" inputStyle={inputStyle}>
+                      <input style={inputStyle} value={tituloNombre} onChange={e => setTituloNombre(e.target.value)} />
+                    </Field>
+                    <Field label="Autor *" inputStyle={inputStyle}>
+                      <input style={inputStyle} value={autor} onChange={e => setAutor(e.target.value)} />
+                    </Field>
+                    <Field label="Categoría *" inputStyle={inputStyle}>
+                      <select style={inputStyle} value={idCategoria} onChange={e => seleccionarCategoria(e.target.value)}>
+                        <option value="">Seleccione...</option>
+                        {categorias.map(c => (
+                          <option key={c.id_categoria} value={c.id_categoria}>{c.codigo_dewey} - {c.nombre}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Ubicación Dewey *" inputStyle={inputStyle}>
+                      <input style={inputStyle} value={ubicacionDewey} onChange={e => setUbicacionDewey(e.target.value)} placeholder="ej: 863.44/G217" />
+                    </Field>
+                    <Field label="ISBN" inputStyle={inputStyle}>
+                      <input style={inputStyle} value={isbn} onChange={e => setIsbn(e.target.value)} />
+                    </Field>
+                    <Field label="Año de publicación" inputStyle={inputStyle}>
+                      <input style={inputStyle} type="number" value={anio} onChange={e => setAnio(e.target.value)} />
+                    </Field>
+                    <Field label="URL de imagen" inputStyle={inputStyle}>
+                      <input style={inputStyle} value={imagenUrl} onChange={e => setImagenUrl(e.target.value)} placeholder="https://..." />
+                    </Field>
+                    {!editandoTitulo && (
+                      <Field label="Ejemplares iniciales" inputStyle={inputStyle}>
+                        <input style={inputStyle} type="number" min="1" max="200" value={cantidadEjemplares} onChange={e => cambiarCantidad(e.target.value)} />
+                      </Field>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+                    <button style={primaryButton} onClick={guardarTitulo} disabled={guardando}>
+                      <Save size={17} /> {guardando ? 'Guardando...' : editandoTitulo ? 'Actualizar título' : 'Guardar título y ejemplares'}
+                    </button>
+                    <button style={secondaryButton} onClick={() => { resetTitulo(); setVista('titulos') }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {modoFormulario === 'ejemplar' && (
+                <>
+                  {idTituloEjemplar ? (
+                    <div style={{ marginBottom: '14px', padding: '14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <span style={{ display: 'block', color: '#64748b', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                        Título seleccionado
+                      </span>
+                      <strong style={{ display: 'block', marginTop: '4px' }}>
+                        {titulos.find(t => String(t.id_titulo) === idTituloEjemplar)?.titulo || 'Título'}
+                      </strong>
+                      <span style={{ color: '#64748b', fontSize: '13px' }}>
+                        Dewey: {ubicacionDewey || 'sin código asignado'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: '14px', padding: '14px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontWeight: 800 }}>
+                      Selecciona primero un título desde la pestaña “Títulos activos” usando el botón “Añadir copias”.
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                    <Field label="Cantidad de ejemplares" inputStyle={inputStyle}>
+                      <input style={inputStyle} type="number" min="1" max="200" value={cantidadEjemplares} onChange={e => cambiarCantidad(e.target.value)} />
+                    </Field>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+                    <button style={primaryButton} onClick={guardarEjemplares} disabled={guardando}>
+                      <Save size={17} /> {guardando ? 'Guardando...' : 'Guardar ejemplares'}
+                    </button>
+                    <button style={secondaryButton} onClick={() => setVista('titulos')}>
+                      Volver a títulos
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <aside style={{ ...panelStyle, padding: '20px', alignSelf: 'start' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '18px' }}>Códigos automáticos</h3>
+              <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '14px' }}>
+                Se generan al guardar con el siguiente correlativo disponible.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
+                {codigosEjemplares.slice(0, 40).map(codigo => (
+                  <span key={codigo} style={pill('#eef2ff', '#3730a3')}>{codigo}</span>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                {codigosEjemplares.length > 40 && (
+                  <span style={pill('#f1f5f9', '#475569')}>+{codigosEjemplares.length - 40} más</span>
+                )}
+              </div>
+            </aside>
+          </section>
+        )}
 
-      {/* CONFIG MULTAS */}
-      {vista === 'configuracion' && config && (
-        <div style={{ maxWidth: '400px' }}>
-          <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
-            Estos valores se aplican al calcular multas en devoluciones.
-          </p>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Cargo base por vencimiento (Q)</label>
-            <input style={inputStyle} type="number" step="0.01" value={cfgBase} onChange={e => setCfgBase(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Cargo por día de retraso (Q)</label>
-            <input style={inputStyle} type="number" step="0.01" value={cfgDia} onChange={e => setCfgDia(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Cargo por daño leve (Q)</label>
-            <input style={inputStyle} type="number" step="0.01" value={cfgLeve} onChange={e => setCfgLeve(e.target.value)} />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Cargo por daño grave (Q)</label>
-            <input style={inputStyle} type="number" step="0.01" value={cfgGrave} onChange={e => setCfgGrave(e.target.value)} />
-          </div>
-          <button onClick={guardarConfig} disabled={guardando} style={{ padding: '10px 24px', cursor: 'pointer' }}>
-            {guardando ? 'Guardando...' : 'Guardar configuración'}
-          </button>
-        </div>
-      )}
+        {vista === 'establecimientos' && (
+          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            <div style={{ ...panelStyle, padding: '20px', alignSelf: 'start' }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: '20px' }}>
+                {editandoEstablecimiento ? 'Editar establecimiento' : 'Agregar establecimiento'}
+              </h2>
+              <Field label="Nombre *" inputStyle={inputStyle}>
+                <input style={inputStyle} value={nombreEstablecimiento} onChange={e => setNombreEstablecimiento(e.target.value)} />
+              </Field>
+              <div style={{ marginTop: '14px' }}>
+                <label style={labelStyle}>Niveles educativos *</label>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {niveles.map(nivel => (
+                    <label key={nivel.id_nivel} style={{ display: 'flex', gap: '9px', alignItems: 'center', color: '#334155', fontWeight: 700, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={nivelesSeleccionados.includes(nivel.id_nivel)} onChange={() => toggleNivel(nivel.id_nivel)} />
+                      {nivel.nombre}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+                <button style={primaryButton} onClick={guardarEstablecimiento} disabled={guardando}>
+                  <Save size={17} /> {guardando ? 'Guardando...' : editandoEstablecimiento ? 'Actualizar' : 'Agregar'}
+                </button>
+                <button style={secondaryButton} onClick={abrirNuevoEstablecimiento}>
+                  Limpiar
+                </button>
+              </div>
+            </div>
+
+            <div style={panelStyle}>
+              <div style={{ padding: '18px 20px', borderBottom: '1px solid #e2e8f0' }}>
+                <h2 style={{ margin: 0, fontSize: '20px' }}>Establecimientos activos</h2>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+                  <tbody>
+                    {establecimientosActivos.length === 0 ? (
+                      <tr><td style={{ padding: '22px 20px', color: '#64748b' }}>Sin establecimientos activos.</td></tr>
+                    ) : establecimientosActivos.map(est => renderEstablecimientoRow(est))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <button style={secondaryButton} onClick={() => setMostrarEstablecimientosBaja(prev => !prev)}>
+                  <Archive size={16} /> Establecimientos dados de baja ({establecimientosBaja.length})
+                </button>
+                {mostrarEstablecimientosBaja && (
+                  <div style={{ marginTop: '14px', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', background: 'white' }}>
+                      <tbody>
+                        {establecimientosBaja.length === 0 ? (
+                          <tr><td style={{ padding: '18px', color: '#64748b' }}>No hay establecimientos dados de baja.</td></tr>
+                        ) : establecimientosBaja.map(est => renderEstablecimientoRow(est, true))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {vista === 'configuracion' && config && (
+          <section style={{ ...panelStyle, padding: '20px', maxWidth: '620px' }}>
+            <h2 style={{ margin: '0 0 6px', fontSize: '20px' }}>Configuración de multas</h2>
+            <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '14px' }}>
+              Estos valores se aplican en devoluciones y panel de alertas.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+              <Field label="Cargo base por vencimiento (Q)" inputStyle={inputStyle}>
+                <input style={inputStyle} type="number" step="0.01" value={cfgBase} onChange={e => setCfgBase(e.target.value)} />
+              </Field>
+              <Field label="Cargo por día de retraso (Q)" inputStyle={inputStyle}>
+                <input style={inputStyle} type="number" step="0.01" value={cfgDia} onChange={e => setCfgDia(e.target.value)} />
+              </Field>
+              <Field label="Cargo por daño leve (Q)" inputStyle={inputStyle}>
+                <input style={inputStyle} type="number" step="0.01" value={cfgLeve} onChange={e => setCfgLeve(e.target.value)} />
+              </Field>
+              <Field label="Cargo por daño grave (Q)" inputStyle={inputStyle}>
+                <input style={inputStyle} type="number" step="0.01" value={cfgGrave} onChange={e => setCfgGrave(e.target.value)} />
+              </Field>
+            </div>
+            <button style={{ ...primaryButton, marginTop: '18px' }} onClick={guardarConfig} disabled={guardando}>
+              <Save size={17} /> {guardando ? 'Guardando...' : 'Guardar configuración'}
+            </button>
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: 800,
+        color: '#475569',
+        marginBottom: '6px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.02em',
+      }}>
+        {label}
+      </label>
+      {children}
     </div>
   )
 }

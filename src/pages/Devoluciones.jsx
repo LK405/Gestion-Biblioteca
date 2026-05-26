@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { jsPDF } from 'jspdf'
 import { CheckCircle2, CreditCard, FileText, RotateCcw, Search } from 'lucide-react'
@@ -21,6 +21,7 @@ function obtenerMulta(prestamo) {
 
 export default function Devoluciones() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
   const [prestamos, setPrestamos] = useState([])
   const [cargando, setCargando] = useState(false)
@@ -42,6 +43,7 @@ export default function Devoluciones() {
   const [multas, setMultas] = useState([])
   const [cargandoMultas, setCargandoMultas] = useState(false)
   const [filtroMultas, setFiltroMultas] = useState('TODAS')
+  const [procesandoMultaId, setProcesandoMultaId] = useState(null)
 
   const cargarHistorial = useCallback(async (pag, tipo = 'TODOS') => {
     setCargandoHistorial(true)
@@ -165,6 +167,68 @@ async function buscarPrestamos() {
     if (tipo === 'FORMAL') return lista.filter(p => p.tipo === 'FORMAL')
     if (tipo === 'EXTERNO_INMEDIATO') return lista.filter(p => p.tipo === 'EXTERNO_INMEDIATO')
     return lista
+  }
+
+  function abrirEnLectores(nombre) {
+    if (!nombre) return
+    navigate('/lectores', { state: { busqueda: nombre } })
+  }
+
+  function generarPDFPagoMulta(multa) {
+    const doc = new jsPDF()
+    const fechaHora = new Date().toLocaleString('es-GT')
+    let y = 20
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.text('Biblioteca Municipal', 105, y, { align: 'center' }); y += 8
+    doc.setFontSize(12)
+    doc.text('Comprobante de pago de multa', 105, y, { align: 'center' }); y += 10
+    doc.line(15, y, 195, y); y += 10
+
+    doc.setFontSize(10)
+    doc.text('DATOS DEL USUARIO', 15, y); y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Nombre: ${multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || 'No registrado'}`, 15, y); y += 6
+    doc.text(`DPI: ${multa.prestamo?.lector?.dpi || multa.prestamo?.dpi_garantia || 'No registrado'}`, 15, y); y += 10
+
+    doc.setFont('helvetica', 'bold')
+    doc.text('DATOS DE LA MULTA', 15, y); y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Libro: ${multa.prestamo?.ejemplar?.titulo?.titulo || 'No registrado'}`, 15, y); y += 6
+    doc.text(`Codigo ejemplar: ${multa.prestamo?.ejemplar?.codigo_inventario || 'No registrado'}`, 15, y); y += 6
+    doc.text(`Estado del libro: ${multa.estado_libro || 'No registrado'}`, 15, y); y += 6
+    doc.text(`Dias de retraso: ${multa.dias_retraso || 0}`, 15, y); y += 6
+    doc.text(`Fecha de pago: ${fechaHora}`, 15, y); y += 10
+
+    doc.line(15, y, 195, y); y += 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text(`MONTO PAGADO: Q${Number(multa.monto_total || 0).toFixed(2)}`, 15, y); y += 12
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(120)
+    doc.text(`Comprobante generado el ${fechaHora}`, 105, y, { align: 'center' })
+
+    doc.save(`comprobante-pago-multa-${multa.id_multa}.pdf`)
+  }
+
+  async function registrarPagoMulta(multa) {
+    setProcesandoMultaId(multa.id_multa)
+    const { error } = await supabase
+      .from('multa')
+      .update({ pagada: true })
+      .eq('id_multa', multa.id_multa)
+
+    if (error) {
+      console.error('Error registrando pago de multa:', error)
+      setMensaje({ texto: 'No se pudo registrar el pago de la multa.', error: true })
+    } else {
+      setMensaje({ texto: 'Pago de multa registrado correctamente.', error: false })
+      generarPDFPagoMulta({ ...multa, pagada: true })
+      await cargarMultas(filtroMultas)
+    }
+    setProcesandoMultaId(null)
   }
 
   async function calcularMulta(prestamo, estadoL) {
@@ -410,7 +474,7 @@ async function buscarPrestamos() {
           <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulacion</p>
           <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Devoluciones</h1>
           <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
-            Busca prestamos activos, revisa el usuario y confirma el estado del libro.
+            Busca prestamos, confirma devoluciones y consulta multas generadas.
           </p>
         </div>
         <button
@@ -527,7 +591,14 @@ async function buscarPrestamos() {
                 <tbody>
                   {prestamosFiltrados.map(p => (
                     <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
+                    <td style={{ padding: '12px' }}>
+                      <button
+                        onClick={() => abrirEnLectores(p.lector?.nombre || p.nombre_inmediato)}
+                        style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                      >
+                        {p.lector?.nombre || p.nombre_inmediato || '-'}
+                      </button>
+                    </td>
                       <td style={{ padding: '12px', color: '#334155' }}>
                         <strong>{p.ejemplar?.titulo?.titulo}</strong>
                         <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
@@ -580,7 +651,12 @@ async function buscarPrestamos() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '14px' }}>
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
                   <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Usuario</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.lector?.nombre || seleccionado.nombre_inmediato}</p>
+                  <button
+                    onClick={() => abrirEnLectores(seleccionado.lector?.nombre || seleccionado.nombre_inmediato)}
+                    style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                  >
+                    {seleccionado.lector?.nombre || seleccionado.nombre_inmediato}
+                  </button>
                 </div>
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
                   <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Salida</p>
@@ -748,7 +824,14 @@ async function buscarPrestamos() {
                     const estadoMostrado = multa?.estado_libro || (p.ejemplar?.estado === 'FUERA_DE_SERVICIO' ? 'FUERA_DE_SERVICIO' : 'BUENO')
                     return (
                       <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
+                        <td style={{ padding: '12px' }}>
+                          <button
+                            onClick={() => abrirEnLectores(p.lector?.nombre || p.nombre_inmediato)}
+                            style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                          >
+                            {p.lector?.nombre || p.nombre_inmediato || '-'}
+                          </button>
+                        </td>
                         <td style={{ padding: '12px', color: '#334155' }}>{p.ejemplar?.titulo?.titulo}</td>
                         <td style={{ padding: '12px', color: '#475569' }}>{p.tipo === 'FORMAL' ? 'Formal' : 'Inmediata'}</td>
                         <td style={{ padding: '12px', color: '#475569' }}>{p.fecha_devolucion_real}</td>
@@ -797,13 +880,19 @@ async function buscarPrestamos() {
                   <th style={{ padding: '12px' }}>Retraso</th>
                   <th style={{ padding: '12px' }}>Monto</th>
                   <th style={{ padding: '12px' }}>Estado pago</th>
+                  <th style={{ padding: '12px', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {multas.map(multa => (
                   <tr key={multa.id_multa} style={{ borderTop: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>
-                      {multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || '-'}
+                    <td style={{ padding: '12px' }}>
+                      <button
+                        onClick={() => abrirEnLectores(multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato)}
+                        style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                      >
+                        {multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || '-'}
+                      </button>
                     </td>
                     <td style={{ padding: '12px', color: '#334155' }}>
                       {multa.prestamo?.ejemplar?.titulo?.titulo || '-'}
@@ -825,6 +914,22 @@ async function buscarPrestamos() {
                       }}>
                         {multa.pagada ? 'Pagada' : 'Pendiente'}
                       </span>
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                        <button onClick={() => generarPDFPagoMulta(multa)} style={buttonSecondary}>
+                          <FileText size={15} /> PDF
+                        </button>
+                        {!multa.pagada && (
+                          <button
+                            onClick={() => registrarPagoMulta(multa)}
+                            disabled={procesandoMultaId === multa.id_multa}
+                            style={{ ...buttonPrimary, opacity: procesandoMultaId === multa.id_multa ? 0.65 : 1 }}
+                          >
+                            <CreditCard size={15} /> {procesandoMultaId === multa.id_multa ? 'Registrando...' : 'Registrar pago'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

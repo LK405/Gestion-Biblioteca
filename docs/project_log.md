@@ -49,3 +49,51 @@ Autor: Codex
 Archivo modificado: src/pages/Devoluciones.jsx, src/pages/Dashboard.jsx, src/pages/Lectores.jsx
 Descripcion: Se consolido Lectores como vista oficial para datos de usuario; Devoluciones elimino el modal de usuario, cambio texto a Buscar prestamo e integro una vista de Multas. Dashboard ahora dirige usuarios a Lectores, enlaza Multas a Devoluciones y elimina Titulos sin disponibilidad.
 Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Devoluciones.jsx, src/pages/Dashboard.jsx, src/pages/Lectores.jsx
+Descripcion: Verificacion y ajuste de coherencia: los nombres de usuario en Dashboard y Devoluciones ahora enlazan a Lectores con busqueda prellenada; Lectores actualiza el campo de busqueda al recibir navegacion interna.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Devoluciones.jsx
+Descripcion: En la vista de Multas se agrego accion para registrar pago de multas pendientes, actualizar pagada=true y generar comprobante PDF de pago.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Reportes.jsx
+Descripcion: Reportes fue redisenado como dashboard analitico para administradores con metricas, graficos de barras, prestamos del periodo, libros mas solicitados, multas y usuarios recurrentes.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/GestionCatalogo.jsx
+Descripcion: Gestion de catalogo fue redisenada para administradores; nuevo titulo y ejemplares quedaron unificados, los codigos de inventario se generan automaticamente y los titulos/establecimientos dados de baja se consultan en secciones separadas al final.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/GestionCatalogo.jsx, src/pages/Dashboard.jsx
+Descripcion: En Gestion de catalogo se agrego accion directa para anadir copias desde cada titulo activo y se simplifico el flujo para pedir solo cantidad usando Dewey automatico. En Dashboard se elimino el boton redundante Ver en lectores y las alertas se ordenan por prestamo mas reciente.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Dashboard.jsx
+Descripcion: Panel de alertas ajustado para reducir columnas de salida/estado, compactar la accion de devolucion y ordenar la lista final por fecha y hora de salida mas reciente.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Dashboard.jsx
+Descripcion: Panel de alertas mejora ordenamiento con alternador Recientes/Antiguos, desempate por id_prestamo, nombres alineados a la izquierda, tipo/estado en texto simple con color y boton Confirmar devolucion en dos lineas.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/components/Layout.jsx
+Descripcion: Menu lateral fijado durante el scroll, cierre de sesion anclado en la parte inferior y cabecera de usuario/rol redisenada con tarjeta visual para administrador.
+Estado: probado en local con eslint enfocado y npm run build.

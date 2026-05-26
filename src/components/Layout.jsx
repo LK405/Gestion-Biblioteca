@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { LogOut, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function Layout({ children }) {
@@ -11,39 +12,88 @@ export default function Layout({ children }) {
   }
 
   const linkStyle = ({ isActive }) => ({
-    display: 'block',
-    padding: '8px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 12px',
     textDecoration: 'none',
-    color: isActive ? 'white' : '#cbd5e1',
-    background: isActive ? '#1d4ed8' : 'transparent',
-    borderRadius: '4px',
+    color: isActive ? '#0f172a' : '#cbd5e1',
+    background: isActive ? 'white' : 'transparent',
+    borderRadius: '10px',
     fontSize: '14px',
-    marginBottom: '2px',
+    fontWeight: isActive ? 800 : 700,
+    marginBottom: '4px',
+    minHeight: '40px',
+    boxShadow: isActive ? '0 10px 24px rgba(15, 23, 42, 0.16)' : 'none',
   })
+
+  const inicial = usuario?.nombre?.trim()?.charAt(0)?.toUpperCase() || 'A'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar */}
       <div style={{
-        width: '220px',
-        background: '#1e293b',
-        padding: '20px 12px',
+        width: '240px',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        background: '#0f172a',
+        padding: '18px 12px',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
+        boxSizing: 'border-box',
+        borderRight: '1px solid #1e293b',
       }}>
         {/* Usuario */}
-        <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #334155' }}>
-          <p style={{ color: 'white', fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '14px' }}>
-            {usuario?.nombre}
-          </p>
-          <p style={{ color: '#94a3b8', margin: 0, fontSize: '12px' }}>
-            {rol}
-          </p>
+        <div style={{
+          marginBottom: '18px',
+          padding: '14px',
+          borderRadius: '16px',
+          background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 52%, #f8fafc 100%)',
+          border: '1px solid rgba(191, 219, 254, 0.9)',
+          boxShadow: '0 18px 34px rgba(15, 23, 42, 0.22)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: '#1d4ed8',
+              color: 'white',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: '18px',
+              fontWeight: 900,
+              flexShrink: 0,
+            }}>
+              {inicial}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ color: '#0f172a', fontWeight: 900, margin: '0 0 3px 0', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {usuario?.nombre}
+              </p>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: '#1d4ed8',
+                background: 'rgba(255, 255, 255, 0.75)',
+                border: '1px solid rgba(147, 197, 253, 0.8)',
+                borderRadius: '999px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: 900,
+                textTransform: 'capitalize',
+              }}>
+                <ShieldCheck size={13} />
+                {rol?.toLowerCase()}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Navegación */}
-        <nav style={{ flex: 1 }}>
+        <nav style={{ flex: 1, overflowY: 'auto', paddingRight: '2px' }}>
           <NavLink to="/dashboard" style={linkStyle}>
             Panel de alertas
           </NavLink>
@@ -76,17 +126,24 @@ export default function Layout({ children }) {
         <button
           onClick={handleLogout}
           style={{
-            marginTop: '16px',
-            padding: '8px 12px',
+            marginTop: '14px',
+            padding: '11px 12px',
             cursor: 'pointer',
-            background: '#dc2626',
+            background: '#b91c1c',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '10px',
             fontSize: '14px',
+            fontWeight: 800,
             width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 12px 24px rgba(185, 28, 28, 0.22)',
           }}
         >
+          <LogOut size={16} />
           Cerrar sesión
         </button>
       </div>

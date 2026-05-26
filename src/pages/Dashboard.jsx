@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import {
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   BookOpen,
   CheckCircle2,
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const [mensaje, setMensaje] = useState({ texto: '', error: false })
   const [procesandoId, setProcesandoId] = useState(null)
   const [filtroPrestamos, setFiltroPrestamos] = useState('todos')
+  const [ordenAlertas, setOrdenAlertas] = useState('recientes')
 
   const [actividad, setActividad] = useState(null)
   const [periodoActividad, setPeriodoActividad] = useState('semana')
@@ -59,7 +62,9 @@ export default function Dashboard() {
         ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, titulo (titulo, autor))
       `)
       .in('estado', ['ACTIVO', 'VENCIDO'])
-      .order('fecha_devolucion_esperada', { ascending: true })
+      .order('fecha_salida', { ascending: false })
+      .order('hora_salida', { ascending: false })
+      .order('id_prestamo', { ascending: false })
 
     if (error) {
       console.error('Error cargando alertas:', error)
@@ -308,12 +313,30 @@ export default function Dashboard() {
     { label: 'Devoluciones realizadas', valor: actividad.devoluciones, color: '#16a34a', icon: CheckCircle2, ruta: '/devoluciones' },
     { label: 'Multas generadas', valor: actividad.multas, color: '#dc2626', icon: CreditCard, ruta: '/devoluciones', state: { vista: 'multas' } },
   ] : []
+  function fechaSalidaMs(prestamo) {
+    const fecha = prestamo.fecha_salida || '1900-01-01'
+    const hora = prestamo.hora_salida || '00:00:00'
+    const tiempo = new Date(`${fecha}T${hora}`).getTime()
+    return Number.isNaN(tiempo) ? 0 : tiempo
+  }
+
   const prestamosAlertas = [...inmediatos, ...porVencer, ...vencidos]
-  const prestamosFiltrados = prestamosAlertas.filter(p => {
-    if (filtroPrestamos === 'formal') return p.tipo === 'FORMAL'
-    if (filtroPrestamos === 'inmediato') return p.tipo === 'EXTERNO_INMEDIATO'
-    return true
-  })
+    .sort((a, b) => {
+      const diferenciaFecha = ordenAlertas === 'recientes'
+        ? fechaSalidaMs(b) - fechaSalidaMs(a)
+        : fechaSalidaMs(a) - fechaSalidaMs(b)
+      if (diferenciaFecha !== 0) return diferenciaFecha
+      return ordenAlertas === 'recientes'
+        ? (b.id_prestamo || 0) - (a.id_prestamo || 0)
+        : (a.id_prestamo || 0) - (b.id_prestamo || 0)
+    })
+
+  const prestamosFiltrados = prestamosAlertas
+    .filter(p => {
+      if (filtroPrestamos === 'formal') return p.tipo === 'FORMAL'
+      if (filtroPrestamos === 'inmediato') return p.tipo === 'EXTERNO_INMEDIATO'
+      return true
+    })
   const tabsPrestamos = [
     { id: 'todos', label: 'Todos', total: prestamosAlertas.length },
     { id: 'inmediato', label: 'Inmediato', total: inmediatos.length },
@@ -343,36 +366,51 @@ export default function Dashboard() {
         </div>
 
         <div style={{
-          display: 'inline-flex',
-          gap: '4px',
-          padding: '4px',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          background: '#f8fafc',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '10px',
           marginBottom: '14px',
           flexWrap: 'wrap',
         }}>
-          {tabsPrestamos.map(tab => {
-            const activo = filtroPrestamos === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFiltroPrestamos(tab.id)}
-                style={{
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  background: activo ? '#2563eb' : 'transparent',
-                  color: activo ? 'white' : '#475569',
-                  fontSize: '13px',
-                  fontWeight: 900,
-                }}
-              >
-                {tab.label} <span style={{ opacity: activo ? 0.95 : 0.7 }}>({tab.total})</span>
-              </button>
-            )
-          })}
+          <div style={{
+            display: 'inline-flex',
+            gap: '4px',
+            padding: '4px',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            background: '#f8fafc',
+            flexWrap: 'wrap',
+          }}>
+            {tabsPrestamos.map(tab => {
+              const activo = filtroPrestamos === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFiltroPrestamos(tab.id)}
+                  style={{
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    background: activo ? '#2563eb' : 'transparent',
+                    color: activo ? 'white' : '#475569',
+                    fontSize: '13px',
+                    fontWeight: 900,
+                  }}
+                >
+                  {tab.label} <span style={{ opacity: activo ? 0.95 : 0.7 }}>({tab.total})</span>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            onClick={() => setOrdenAlertas(prev => prev === 'recientes' ? 'antiguos' : 'recientes')}
+            style={buttonSecondary}
+          >
+            {ordenAlertas === 'recientes' ? <ArrowDown size={15} /> : <ArrowUp size={15} />}
+            {ordenAlertas === 'recientes' ? 'Recientes primero' : 'Antiguos primero'}
+          </button>
         </div>
 
         {prestamosFiltrados.length === 0 ? (
@@ -381,16 +419,16 @@ export default function Dashboard() {
           </div>
         ) : (
           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '1020px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '900px', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
-                  <th style={{ padding: '12px' }}>Lector</th>
-                  <th style={{ padding: '12px' }}>Tipo</th>
-                  <th style={{ padding: '12px' }}>Libro</th>
-                  <th style={{ padding: '12px' }}>Fecha / salida</th>
-                  <th style={{ padding: '12px' }}>Estado</th>
-                  <th style={{ padding: '12px' }}>Contacto / multa</th>
-                  <th style={{ padding: '12px', textAlign: 'right' }}>Acciones</th>
+                  <th style={{ padding: '10px 12px', width: '15%' }}>Lector</th>
+                  <th style={{ padding: '10px 8px', width: '9%' }}>Tipo</th>
+                  <th style={{ padding: '10px 12px', width: '23%' }}>Libro</th>
+                  <th style={{ padding: '10px 8px', width: '92px' }}>Salida</th>
+                  <th style={{ padding: '10px 8px', width: '118px' }}>Estado</th>
+                  <th style={{ padding: '10px 12px', width: '15%' }}>Contacto / multa</th>
+                  <th style={{ padding: '10px 12px', width: '190px', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -408,40 +446,38 @@ export default function Dashboard() {
 
                   return (
                     <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '12px' }}>
-                        <strong style={{ color: '#0f172a' }}>{nombreLector}</strong>
+                      <td style={{ padding: '10px 12px', textAlign: 'left' }}>
+                        <button
+                          onClick={() => navigate('/lectores', { state: { busqueda: nombreLector } })}
+                          style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0, textAlign: 'left', display: 'block' }}
+                        >
+                          {nombreLector}
+                        </button>
                       </td>
-                      <td style={{ padding: '12px' }}>
+                      <td style={{ padding: '10px 8px' }}>
                         <span style={{
-                          display: 'inline-flex',
-                          borderRadius: '999px',
-                          padding: '5px 9px',
-                          background: esInmediato ? '#dbeafe' : '#ecfdf5',
                           color: esInmediato ? '#1d4ed8' : '#047857',
                           fontSize: '12px',
-                          fontWeight: 900,
+                          fontWeight: 600,
                         }}>
                           {tipoTexto}
                         </span>
                       </td>
-                      <td style={{ padding: '12px', color: '#334155' }}>
+                      <td style={{ padding: '10px 12px', color: '#334155' }}>
                         <strong>{p.ejemplar?.titulo?.titulo}</strong>
                         <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
                       </td>
-                      <td style={{ padding: '12px', color: '#475569' }}>
+                      <td style={{ padding: '10px 8px', color: '#475569', fontSize: '12px', lineHeight: 1.35 }}>
                         {esInmediato ? `${p.fecha_salida || '-'} ${p.hora_salida || ''}`.trim() : p.fecha_devolucion_esperada}
                       </td>
-                      <td style={{ padding: '12px', color: vencido ? '#dc2626' : esInmediato ? '#1d4ed8' : '#b45309', fontWeight: 800 }}>
+                      <td style={{ padding: '10px 8px', color: vencido ? '#dc2626' : esInmediato ? '#1d4ed8' : '#b45309', fontWeight: 600, fontSize: '12px', lineHeight: 1.35 }}>
                         {esInmediato ? 'Inmediato activo' : vencido ? `Vencido por ${diasRetraso(p.fecha_devolucion_esperada)} dias` : diasRestantes(p.fecha_devolucion_esperada)}
                       </td>
-                      <td style={{ padding: '12px', color: vencido ? '#dc2626' : '#475569', fontWeight: vencido ? 800 : 400 }}>
+                      <td style={{ padding: '10px 12px', color: vencido ? '#dc2626' : '#475569', fontWeight: vencido ? 800 : 400 }}>
                         {vencido ? multaEstimada(p) : contacto}
                       </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
-                          <button onClick={() => navigate('/lectores', { state: { busqueda: nombreLector } })} style={buttonSecondary}>
-                            Ver en lectores
-                          </button>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', flexWrap: 'wrap' }}>
                           {vencido && (
                             <button onClick={() => generarReportePago(p)} style={buttonSecondary}>
                               <FileText size={15} /> PDF pago
@@ -450,9 +486,11 @@ export default function Dashboard() {
                           <button
                             onClick={() => abrirConfirmacionDevolucion(p)}
                             disabled={procesandoId === p.id_prestamo}
-                            style={{ ...buttonPrimary, opacity: procesandoId === p.id_prestamo ? 0.65 : 1 }}
+                            style={{ ...buttonPrimary, padding: '7px 10px', minWidth: '88px', lineHeight: 1.1, flexDirection: 'column', gap: '2px', opacity: procesandoId === p.id_prestamo ? 0.65 : 1 }}
                           >
-                            <CheckCircle2 size={15} /> Confirmar devolucion
+                            <CheckCircle2 size={15} />
+                            <span>Confirmar</span>
+                            <span>devolucion</span>
                           </button>
                         </div>
                       </td>

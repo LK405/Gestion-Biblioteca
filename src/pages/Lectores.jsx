@@ -174,6 +174,7 @@ export default function Lectores() {
       if (!activo) return
       setNiveles(nivelesData || [])
       setEstablecimientos(establecimientosData || [])
+      setBusqueda(busquedaInicial)
       cargarPersonas(1, busquedaInicial, 'todos')
     }
 
