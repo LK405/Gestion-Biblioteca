@@ -286,12 +286,12 @@ export default function Dashboard() {
     doc.save(`reporte-pago-${prestamo.lector?.nombre?.replace(/\s+/g, '-') || 'lector'}-${prestamo.id_prestamo}.pdf`)
   }
 
-  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
   const buttonSecondary = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
     padding: '9px 12px',
     fontSize: '13px',
     fontWeight: 700,
@@ -304,12 +304,12 @@ export default function Dashboard() {
   const buttonPrimary = {
     ...buttonSecondary,
     border: 'none',
-    background: '#2563eb',
+    background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))',
     color: 'white',
   }
   const maxActividad = Math.max(1, actividad?.prestamos || 0, actividad?.devoluciones || 0, actividad?.multas || 0)
   const actividadItems = actividad ? [
-    { label: 'Prestamos registrados', valor: actividad.prestamos, color: '#2563eb', icon: BookOpen, ruta: '/prestamos' },
+    { label: 'Prestamos registrados', valor: actividad.prestamos, color: 'var(--brand-primary)', icon: BookOpen, ruta: '/prestamos' },
     { label: 'Devoluciones realizadas', valor: actividad.devoluciones, color: '#16a34a', icon: CheckCircle2, ruta: '/devoluciones' },
     { label: 'Multas generadas', valor: actividad.multas, color: '#dc2626', icon: CreditCard, ruta: '/devoluciones', state: { vista: 'multas' } },
   ] : []
@@ -348,16 +348,16 @@ export default function Dashboard() {
       <section style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Prestamos en alerta</h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+            <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Prestamos en alerta</h2>
+            <p style={{ margin: '6px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
               Revisa prestamos inmediatos activos, formales por vencer y formales vencidos desde una sola vista.
             </p>
           </div>
           <span style={{
             borderRadius: '999px',
             padding: '6px 10px',
-            background: '#eff6ff',
-            color: '#1d4ed8',
+            background: 'rgba(219, 234, 254, 0.72)',
+            color: 'var(--brand-primary)',
             fontSize: '13px',
             fontWeight: 800,
           }}>
@@ -377,9 +377,9 @@ export default function Dashboard() {
             display: 'inline-flex',
             gap: '4px',
             padding: '4px',
-            border: '1px solid #e2e8f0',
+            border: '1px solid var(--border-soft)',
             borderRadius: '8px',
-            background: '#f8fafc',
+            background: 'var(--surface-muted)',
             flexWrap: 'wrap',
           }}>
             {tabsPrestamos.map(tab => {
@@ -393,7 +393,7 @@ export default function Dashboard() {
                     borderRadius: '6px',
                     padding: '8px 12px',
                     cursor: 'pointer',
-                    background: activo ? '#2563eb' : 'transparent',
+                    background: activo ? 'var(--brand-primary)' : 'transparent',
                     color: activo ? 'white' : '#475569',
                     fontSize: '13px',
                     fontWeight: 900,
@@ -414,14 +414,14 @@ export default function Dashboard() {
         </div>
 
         {prestamosFiltrados.length === 0 ? (
-          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+          <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
             No hay registros para mostrar.
           </div>
         ) : (
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+          <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '900px', tableLayout: 'fixed' }}>
               <thead>
-                <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                   <th style={{ padding: '10px 12px', width: '15%' }}>Lector</th>
                   <th style={{ padding: '10px 8px', width: '9%' }}>Tipo</th>
                   <th style={{ padding: '10px 12px', width: '23%' }}>Libro</th>
@@ -449,7 +449,7 @@ export default function Dashboard() {
                       <td style={{ padding: '10px 12px', textAlign: 'left' }}>
                         <button
                           onClick={() => navigate('/lectores', { state: { busqueda: nombreLector } })}
-                          style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0, textAlign: 'left', display: 'block' }}
+                          style={{ border: 'none', background: 'transparent', color: 'var(--brand-primary)', fontWeight: 900, cursor: 'pointer', padding: 0, textAlign: 'left', display: 'block' }}
                         >
                           {nombreLector}
                         </button>
@@ -465,7 +465,7 @@ export default function Dashboard() {
                       </td>
                       <td style={{ padding: '10px 12px', color: '#334155' }}>
                         <strong>{p.ejemplar?.titulo?.titulo}</strong>
-                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
+                        <div style={{ color: 'var(--muted-ink)', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
                       </td>
                       <td style={{ padding: '10px 8px', color: '#475569', fontSize: '12px', lineHeight: 1.35 }}>
                         {esInmediato ? `${p.fecha_salida || '-'} ${p.hora_salida || ''}`.trim() : p.fecha_devolucion_esperada}
@@ -506,12 +506,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: 'var(--surface-muted)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
-          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Biblioteca Municipal</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Panel de alertas</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+          <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Biblioteca Municipal</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: 'var(--ink)' }}>Panel de alertas</h1>
+          <p style={{ margin: '8px 0 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>
             {usuario?.nombre} - {rol}
           </p>
         </div>
@@ -541,18 +541,18 @@ export default function Dashboard() {
       <section style={{ ...panelStyle, marginBottom: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', display: 'grid', placeItems: 'center' }}>
               <BarChart3 size={20} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Actividad reciente</h2>
-              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>Haz clic en una grafica para ir a sus registros.</p>
+              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Actividad reciente</h2>
+              <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>Haz clic en una grafica para ir a sus registros.</p>
             </div>
           </div>
           <select
             value={periodoActividad}
             onChange={e => { setPeriodoActividad(e.target.value); cargarActividad(e.target.value) }}
-            style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', background: 'white' }}
+            style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', background: 'var(--surface-panel)' }}
           >
             <option value="dia">Hoy</option>
             <option value="semana">Ultima semana</option>
@@ -560,7 +560,7 @@ export default function Dashboard() {
           </select>
         </div>
 
-        {cargandoActividad && <p style={{ color: '#64748b' }}>Cargando actividad...</p>}
+        {cargandoActividad && <p style={{ color: 'var(--muted-ink)' }}>Cargando actividad...</p>}
 
         {!cargandoActividad && actividad && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
@@ -572,10 +572,10 @@ export default function Dashboard() {
                   key={item.label}
                   onClick={() => navigate(item.ruta, item.state ? { state: item.state } : undefined)}
                   style={{
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--border-soft)',
                     borderRadius: '8px',
                     padding: '16px',
-                    background: 'white',
+                    background: 'var(--surface-panel)',
                     cursor: 'pointer',
                     textAlign: 'left',
                   }}
@@ -597,7 +597,7 @@ export default function Dashboard() {
 
       {cargando ? (
         <section style={panelStyle}>
-          <p style={{ margin: 0, color: '#64748b' }}>Cargando alertas...</p>
+          <p style={{ margin: 0, color: 'var(--muted-ink)' }}>Cargando alertas...</p>
         </section>
       ) : (
         renderPanelPrestamos()
@@ -618,22 +618,22 @@ export default function Dashboard() {
             zIndex: 1000,
             padding: '20px',
           }}>
-            <div style={{ background: 'white', borderRadius: '8px', padding: '22px', width: '560px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.25)' }}>
+            <div style={{ background: 'var(--surface-panel)', borderRadius: '8px', padding: '22px', width: '560px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.25)' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px' }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#dcfce7', color: '#16a34a', display: 'grid', placeItems: 'center' }}>
                   <CheckCircle2 size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Confirmar devolucion</h3>
-                  <p style={{ margin: '3px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Confirmar devolucion</h3>
+                  <p style={{ margin: '3px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
                     Revisa el estado del libro antes de cerrar el prestamo.
                   </p>
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#f8fafc', marginBottom: '14px' }}>
-                <p style={{ margin: '0 0 4px 0', color: '#0f172a', fontWeight: 800 }}>{devolucionPendiente.ejemplar?.titulo?.titulo}</p>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+              <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '14px', background: 'var(--surface-muted)', marginBottom: '14px' }}>
+                <p style={{ margin: '0 0 4px 0', color: 'var(--ink)', fontWeight: 800 }}>{devolucionPendiente.ejemplar?.titulo?.titulo}</p>
+                <p style={{ margin: 0, color: 'var(--muted-ink)', fontSize: '13px' }}>
                   {devolucionPendiente.lector?.nombre || devolucionPendiente.nombre_inmediato || 'Sin lector'} · {devolucionPendiente.tipo === 'EXTERNO_INMEDIATO' ? 'Inmediato' : 'Formal'} · Codigo {devolucionPendiente.ejemplar?.codigo_inventario || '-'} · Limite {devolucionPendiente.fecha_devolucion_esperada}
                 </p>
               </div>
@@ -644,7 +644,7 @@ export default function Dashboard() {
               <select
                 value={estadoLibroDevolucion}
                 onChange={e => setEstadoLibroDevolucion(e.target.value)}
-                style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '11px 12px', fontSize: '14px', background: 'white', marginBottom: '14px' }}
+                style={{ width: '100%', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '11px 12px', fontSize: '14px', background: 'var(--surface-panel)', marginBottom: '14px' }}
               >
                 <option value="BUENO">Bueno</option>
                 <option value="DAÑADO_LEVE">Daño leve</option>

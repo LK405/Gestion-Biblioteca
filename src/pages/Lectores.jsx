@@ -290,7 +290,7 @@ export default function Lectores() {
   function colorTipo(persona) {
     if (persona.tieneFormal && persona.tieneInmediato) return { bg: '#fef3c7', color: '#92400e' }
     if (persona.tieneFormal) return { bg: '#ecfdf5', color: '#047857' }
-    return { bg: '#dbeafe', color: '#1d4ed8' }
+    return { bg: '#dbeafe', color: 'var(--brand-primary)' }
   }
 
   function colorEstado(estado) {
@@ -322,12 +322,12 @@ export default function Lectores() {
       )
     : []
 
-  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
   const buttonSecondary = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
     padding: '9px 12px',
     fontSize: '13px',
     fontWeight: 700,
@@ -340,19 +340,19 @@ export default function Lectores() {
   const buttonPrimary = {
     ...buttonSecondary,
     border: 'none',
-    background: '#2563eb',
+    background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))',
     color: 'white',
   }
-  const inputStyle = { width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', boxSizing: 'border-box' }
+  const inputStyle = { width: '100%', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', boxSizing: 'border-box' }
   const labelStyle = { display: 'block', color: '#334155', fontSize: '13px', fontWeight: 800, marginBottom: '6px' }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: 'var(--surface-muted)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
-          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Biblioteca Municipal</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Lectores</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+          <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Biblioteca Municipal</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: 'var(--ink)' }}>Lectores</h1>
+          <p style={{ margin: '8px 0 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>
             Consulta personas registradas, visitantes inmediatos y su historial de libros prestados.
           </p>
         </div>
@@ -380,21 +380,21 @@ export default function Lectores() {
         <section style={panelStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', display: 'grid', placeItems: 'center' }}>
                 <Users size={20} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Registro de personas</h2>
-                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>Una misma persona puede aparecer como formal, inmediata o ambos.</p>
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Registro de personas</h2>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>Una misma persona puede aparecer como formal, inmediata o ambos.</p>
               </div>
             </div>
-            <span style={{ borderRadius: '999px', padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', fontSize: '13px', fontWeight: 800 }}>
+            <span style={{ borderRadius: '999px', padding: '6px 10px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800 }}>
               {total}
             </span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', flexWrap: 'wrap' }}>
               {tabs.map(tab => {
                 const activo = tipoListado === tab.id
                 return (
@@ -406,7 +406,7 @@ export default function Lectores() {
                       borderRadius: '6px',
                       padding: '8px 12px',
                       cursor: 'pointer',
-                      background: activo ? '#2563eb' : 'transparent',
+                      background: activo ? 'var(--brand-primary)' : 'transparent',
                       color: activo ? 'white' : '#475569',
                       fontSize: '13px',
                       fontWeight: 900,
@@ -432,17 +432,17 @@ export default function Lectores() {
           </div>
 
           {cargando ? (
-            <p style={{ margin: 0, color: '#64748b' }}>Cargando lectores...</p>
+            <p style={{ margin: 0, color: 'var(--muted-ink)' }}>Cargando lectores...</p>
           ) : personas.length === 0 ? (
-            <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+            <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
               No hay lectores para mostrar.
             </div>
           ) : (
             <>
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                    <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                       <th style={{ padding: '12px' }}>Persona</th>
                       <th style={{ padding: '12px' }}>Tipo</th>
                       <th style={{ padding: '12px' }}>Contacto</th>
@@ -459,12 +459,12 @@ export default function Lectores() {
                           key={persona.id}
                           onClick={() => verDetalle(persona)}
                           style={{ borderTop: '1px solid #e2e8f0', cursor: 'pointer' }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
                           <td style={{ padding: '12px' }}>
-                            <strong style={{ color: '#1d4ed8' }}>{persona.nombre}</strong>
-                            <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>DPI: {persona.dpi || '-'}</div>
+                            <strong style={{ color: 'var(--brand-primary)' }}>{persona.nombre}</strong>
+                            <div style={{ color: 'var(--muted-ink)', fontSize: '12px', marginTop: '2px' }}>DPI: {persona.dpi || '-'}</div>
                           </td>
                           <td style={{ padding: '12px' }}>
                             <span style={{ display: 'inline-flex', borderRadius: '999px', padding: '5px 9px', background: tipoColor.bg, color: tipoColor.color, fontSize: '12px', fontWeight: 900 }}>
@@ -472,7 +472,7 @@ export default function Lectores() {
                             </span>
                           </td>
                           <td style={{ padding: '12px', color: '#475569' }}>{persona.telefono || '-'}</td>
-                          <td style={{ padding: '12px', color: '#0f172a', fontWeight: 800 }}>{persona.totalPrestamos}</td>
+                          <td style={{ padding: '12px', color: 'var(--ink)', fontWeight: 800 }}>{persona.totalPrestamos}</td>
                           <td style={{ padding: '12px', color: persona.activos > 0 ? '#d97706' : '#475569', fontWeight: persona.activos > 0 ? 800 : 400 }}>{persona.activos}</td>
                           <td style={{ padding: '12px', color: '#475569' }}>{persona.ultimaVisita || '-'}</td>
                         </tr>
@@ -507,12 +507,12 @@ export default function Lectores() {
           <section style={panelStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', display: 'grid', placeItems: 'center' }}>
                   <User size={22} />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a' }}>{personaSeleccionada.nombre}</h2>
-                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                  <h2 style={{ margin: 0, fontSize: '22px', color: 'var(--ink)' }}>{personaSeleccionada.nombre}</h2>
+                  <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
                     {tipoPersona(personaSeleccionada)} · {personaSeleccionada.totalPrestamos} prestamos registrados
                   </p>
                 </div>
@@ -531,26 +531,26 @@ export default function Lectores() {
                 ['Direccion', personaSeleccionada.direccion || '-'],
                 ['Ultima visita', personaSeleccionada.ultimaVisita || '-'],
               ].map(([label, value]) => (
-                <div key={label} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>{label}</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{value}</p>
+                <div key={label} style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>{label}</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{value}</p>
                 </div>
               ))}
             </div>
 
             {personaSeleccionada.formal && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', marginTop: '12px' }}>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Estudiante</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{personaSeleccionada.formal.id_nivel ? 'Si' : 'No'}</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Estudiante</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{personaSeleccionada.formal.id_nivel ? 'Si' : 'No'}</p>
                 </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Nivel</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{nombreNivel(personaSeleccionada.formal.id_nivel)}</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Nivel</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{nombreNivel(personaSeleccionada.formal.id_nivel)}</p>
                 </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Establecimiento</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{nombreEstablecimiento(personaSeleccionada.formal.id_establecimiento)}</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Establecimiento</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{nombreEstablecimiento(personaSeleccionada.formal.id_establecimiento)}</p>
                 </div>
               </div>
             )}
@@ -562,20 +562,20 @@ export default function Lectores() {
                 <BookOpen size={20} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Libros prestados</h3>
-                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>Historial combinado de prestamos formales e inmediatos.</p>
+                <h3 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Libros prestados</h3>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>Historial combinado de prestamos formales e inmediatos.</p>
               </div>
             </div>
 
             {personaSeleccionada.historial.length === 0 ? (
-              <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+              <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
                 Sin libros prestados.
               </div>
             ) : (
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '820px' }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                    <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                       <th style={{ padding: '12px' }}>Libro</th>
                       <th style={{ padding: '12px' }}>Tipo</th>
                       <th style={{ padding: '12px' }}>Estado</th>
@@ -589,7 +589,7 @@ export default function Lectores() {
                       <tr key={prestamo.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
                         <td style={{ padding: '12px' }}>
                           <strong>{prestamo.ejemplar?.titulo?.titulo || '-'}</strong>
-                          <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{prestamo.ejemplar?.codigo_inventario || '-'}</div>
+                          <div style={{ color: 'var(--muted-ink)', fontSize: '12px', marginTop: '2px' }}>{prestamo.ejemplar?.codigo_inventario || '-'}</div>
                         </td>
                         <td style={{ padding: '12px' }}>{prestamo.tipo === 'FORMAL' ? 'Formal' : 'Inmediato'}</td>
                         <td style={{ padding: '12px', color: colorEstado(prestamo.estado), fontWeight: 900 }}>{prestamo.estado}</td>
@@ -612,7 +612,7 @@ export default function Lectores() {
             <ArrowLeft size={15} /> Cancelar
           </button>
 
-          <h2 style={{ margin: '0 0 18px 0', color: '#0f172a' }}>Editar datos</h2>
+          <h2 style={{ margin: '0 0 18px 0', color: 'var(--ink)' }}>Editar datos</h2>
           <div style={{ display: 'grid', gap: '12px' }}>
             <div>
               <label style={labelStyle}>Nombre completo *</label>

@@ -425,22 +425,22 @@ async function buscarPrestamos() {
     { id: 'FORMAL', label: 'Formales' },
     { id: 'EXTERNO_INMEDIATO', label: 'Inmediatas' },
   ]
-  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
   const inputStyle = {
     width: '100%',
     boxSizing: 'border-box',
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
     padding: '11px 12px',
     fontSize: '14px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
   }
   const buttonSecondary = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
     padding: '10px 14px',
     fontSize: '14px',
     fontWeight: 700,
@@ -453,7 +453,7 @@ async function buscarPrestamos() {
   const buttonPrimary = {
     ...buttonSecondary,
     border: 'none',
-    background: '#2563eb',
+    background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))',
     color: 'white',
   }
   const tabStyle = activo => ({
@@ -461,19 +461,19 @@ async function buscarPrestamos() {
     borderRadius: '6px',
     padding: '8px 12px',
     cursor: 'pointer',
-    background: activo ? '#2563eb' : 'transparent',
+    background: activo ? 'var(--brand-primary)' : 'transparent',
     color: activo ? 'white' : '#475569',
     fontSize: '13px',
     fontWeight: 900,
   })
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: 'var(--surface-muted)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
-          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulacion</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Devoluciones</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+          <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulacion</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: 'var(--ink)' }}>Devoluciones</h1>
+          <p style={{ margin: '8px 0 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>
             Busca prestamos, confirma devoluciones y consulta multas generadas.
           </p>
         </div>
@@ -511,9 +511,9 @@ async function buscarPrestamos() {
               ['Fecha devolucion', resumenFinal.fechaDevolucion],
               ['Multa', `Q${resumenFinal.multa.total.toFixed(2)}`],
             ].map(([label, value]) => (
-              <div key={label} style={{ border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', background: 'white' }}>
-                <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>{label}</p>
-                <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{value}</p>
+              <div key={label} style={{ border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', background: 'var(--surface-panel)' }}>
+                <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>{label}</p>
+                <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{value}</p>
               </div>
             ))}
           </div>
@@ -535,18 +535,18 @@ async function buscarPrestamos() {
         <section style={{ ...panelStyle, marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Buscar prestamo</h2>
-              <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Buscar prestamo</h2>
+              <p style={{ margin: '6px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
                 Busca por lector, visitante inmediato, DPI, telefono, titulo, autor o codigo de ejemplar.
               </p>
             </div>
-            <span style={{ borderRadius: '999px', padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', fontSize: '13px', fontWeight: 800 }}>
+            <span style={{ borderRadius: '999px', padding: '6px 10px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800 }}>
               {prestamosFiltrados.length}
             </span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', flexWrap: 'wrap' }}>
               {tipoTabs.map(tab => (
                 <button key={tab.id} onClick={() => setFiltroTipo(tab.id)} style={tabStyle(filtroTipo === tab.id)}>
                   {tab.label}
@@ -568,19 +568,19 @@ async function buscarPrestamos() {
             </div>
           </div>
 
-          {cargando && <p style={{ margin: 0, color: '#64748b' }}>Buscando prestamos...</p>}
+          {cargando && <p style={{ margin: 0, color: 'var(--muted-ink)' }}>Buscando prestamos...</p>}
 
           {!cargando && busqueda.trim() && prestamos.length === 0 && (
-            <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '18px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+            <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '18px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
               No se encontraron prestamos con esa busqueda.
             </div>
           )}
 
           {!cargando && prestamos.length > 0 && !seleccionado && (
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '880px' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                  <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                     <th style={{ padding: '12px' }}>Usuario</th>
                     <th style={{ padding: '12px' }}>Libro</th>
                     <th style={{ padding: '12px' }}>Tipo</th>
@@ -594,14 +594,14 @@ async function buscarPrestamos() {
                     <td style={{ padding: '12px' }}>
                       <button
                         onClick={() => abrirEnLectores(p.lector?.nombre || p.nombre_inmediato)}
-                        style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--brand-primary)', fontWeight: 900, cursor: 'pointer', padding: 0 }}
                       >
                         {p.lector?.nombre || p.nombre_inmediato || '-'}
                       </button>
                     </td>
                       <td style={{ padding: '12px', color: '#334155' }}>
                         <strong>{p.ejemplar?.titulo?.titulo}</strong>
-                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
+                        <div style={{ color: 'var(--muted-ink)', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
                       </td>
                       <td style={{ padding: '12px' }}>
                         <span style={{
@@ -632,39 +632,39 @@ async function buscarPrestamos() {
           )}
 
           {!cargando && prestamos.length > 0 && prestamosFiltrados.length === 0 && !seleccionado && (
-            <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '18px', textAlign: 'center', color: '#64748b', background: '#f8fafc', marginTop: '12px' }}>
+            <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '18px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)', marginTop: '12px' }}>
               No hay prestamos en esta categoria.
             </div>
           )}
 
           {seleccionado && (
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', background: '#f8fafc', marginTop: '14px' }}>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '16px', background: 'var(--surface-muted)', marginTop: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '14px' }}>
                 <div>
-                  <h3 style={{ margin: 0, color: '#0f172a', fontSize: '20px' }}>Confirmar devolucion</h3>
-                  <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                  <h3 style={{ margin: 0, color: 'var(--ink)', fontSize: '20px' }}>Confirmar devolucion</h3>
+                  <p style={{ margin: '5px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
                     {seleccionado.ejemplar?.titulo?.titulo} · {seleccionado.ejemplar?.codigo_inventario}
                   </p>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '14px' }}>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Usuario</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-panel)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Usuario</p>
                   <button
                     onClick={() => abrirEnLectores(seleccionado.lector?.nombre || seleccionado.nombre_inmediato)}
-                    style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                    style={{ border: 'none', background: 'transparent', color: 'var(--brand-primary)', fontWeight: 900, cursor: 'pointer', padding: 0 }}
                   >
                     {seleccionado.lector?.nombre || seleccionado.nombre_inmediato}
                   </button>
                 </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Salida</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.fecha_salida}</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-panel)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Salida</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{seleccionado.fecha_salida}</p>
                 </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Limite</p>
-                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.fecha_devolucion_esperada || '-'}</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-panel)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Limite</p>
+                  <p style={{ margin: 0, color: 'var(--ink)', fontWeight: 800 }}>{seleccionado.fecha_devolucion_esperada || '-'}</p>
                 </div>
               </div>
 
@@ -730,22 +730,22 @@ async function buscarPrestamos() {
       <section style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>
+            <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>
               {vistaConsulta === 'multas' ? 'Multas generadas' : 'Historial de devoluciones'}
             </h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+            <p style={{ margin: '6px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
               {vistaConsulta === 'multas'
                 ? 'Consulta las multas registradas por retraso o dano.'
                 : 'Consulta devoluciones registradas por categoria.'}
             </p>
           </div>
-          <span style={{ borderRadius: '999px', padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', fontSize: '13px', fontWeight: 800 }}>
+          <span style={{ borderRadius: '999px', padding: '6px 10px', background: 'rgba(219, 234, 254, 0.72)', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800 }}>
             {vistaConsulta === 'multas' ? multas.length : totalHistorial}
           </span>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', flexWrap: 'wrap' }}>
             {[
               { id: 'devoluciones', label: 'Devoluciones' },
               { id: 'multas', label: 'Multas' },
@@ -757,7 +757,7 @@ async function buscarPrestamos() {
           </div>
 
           {vistaConsulta === 'devoluciones' && (
-          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', flexWrap: 'wrap' }}>
             {tipoTabs.map(tab => (
             <button
               key={tab.id}
@@ -775,7 +775,7 @@ async function buscarPrestamos() {
           )}
 
           {vistaConsulta === 'multas' && (
-          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', flexWrap: 'wrap' }}>
             {[
               { id: 'TODAS', label: 'Todas' },
               { id: 'PENDIENTES', label: 'Pendientes' },
@@ -796,20 +796,20 @@ async function buscarPrestamos() {
           )}
         </div>
 
-        {vistaConsulta === 'devoluciones' && cargandoHistorial && <p style={{ margin: 0, color: '#64748b' }}>Cargando historial...</p>}
+        {vistaConsulta === 'devoluciones' && cargandoHistorial && <p style={{ margin: 0, color: 'var(--muted-ink)' }}>Cargando historial...</p>}
 
         {vistaConsulta === 'devoluciones' && !cargandoHistorial && historial.length === 0 && (
-          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+          <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
             Sin devoluciones registradas.
           </div>
         )}
 
         {vistaConsulta === 'devoluciones' && !cargandoHistorial && historial.length > 0 && (
           <>
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '860px' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                  <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                     <th style={{ padding: '12px' }}>Usuario</th>
                     <th style={{ padding: '12px' }}>Libro</th>
                     <th style={{ padding: '12px' }}>Tipo</th>
@@ -827,7 +827,7 @@ async function buscarPrestamos() {
                         <td style={{ padding: '12px' }}>
                           <button
                             onClick={() => abrirEnLectores(p.lector?.nombre || p.nombre_inmediato)}
-                            style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                            style={{ border: 'none', background: 'transparent', color: 'var(--brand-primary)', fontWeight: 900, cursor: 'pointer', padding: 0 }}
                           >
                             {p.lector?.nombre || p.nombre_inmediato || '-'}
                           </button>
@@ -860,19 +860,19 @@ async function buscarPrestamos() {
           </>
         )}
 
-        {vistaConsulta === 'multas' && cargandoMultas && <p style={{ margin: 0, color: '#64748b' }}>Cargando multas...</p>}
+        {vistaConsulta === 'multas' && cargandoMultas && <p style={{ margin: 0, color: 'var(--muted-ink)' }}>Cargando multas...</p>}
 
         {vistaConsulta === 'multas' && !cargandoMultas && multas.length === 0 && (
-          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+          <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
             Sin multas registradas.
           </div>
         )}
 
         {vistaConsulta === 'multas' && !cargandoMultas && multas.length > 0 && (
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+          <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
               <thead>
-                <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                   <th style={{ padding: '12px' }}>Usuario</th>
                   <th style={{ padding: '12px' }}>Libro</th>
                   <th style={{ padding: '12px' }}>Tipo</th>
@@ -889,14 +889,14 @@ async function buscarPrestamos() {
                     <td style={{ padding: '12px' }}>
                       <button
                         onClick={() => abrirEnLectores(multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato)}
-                        style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 900, cursor: 'pointer', padding: 0 }}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--brand-primary)', fontWeight: 900, cursor: 'pointer', padding: 0 }}
                       >
                         {multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || '-'}
                       </button>
                     </td>
                     <td style={{ padding: '12px', color: '#334155' }}>
                       {multa.prestamo?.ejemplar?.titulo?.titulo || '-'}
-                      <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{multa.prestamo?.ejemplar?.codigo_inventario || '-'}</div>
+                      <div style={{ color: 'var(--muted-ink)', fontSize: '12px', marginTop: '2px' }}>{multa.prestamo?.ejemplar?.codigo_inventario || '-'}</div>
                     </td>
                     <td style={{ padding: '12px', color: '#475569' }}>{multa.prestamo?.tipo === 'FORMAL' ? 'Formal' : 'Inmediata'}</td>
                     <td style={{ padding: '12px', color: '#475569' }}>{multa.estado_libro || '-'}</td>

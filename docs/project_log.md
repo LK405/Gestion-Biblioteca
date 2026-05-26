@@ -97,3 +97,15 @@ Autor: Codex
 Archivo modificado: src/components/Layout.jsx
 Descripcion: Menu lateral fijado durante el scroll, cierre de sesion anclado en la parte inferior y cabecera de usuario/rol redisenada con tarjeta visual para administrador.
 Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/index.css, src/components/Layout.jsx, src/pages/Login.jsx, src/pages/Catalogo.jsx, src/pages/Dashboard.jsx, src/pages/Prestamos.jsx, src/pages/Devoluciones.jsx, src/pages/Lectores.jsx, src/pages/Reportes.jsx, src/pages/GestionCatalogo.jsx
+Descripcion: Se unifico la capa visual del sistema con paleta azul corporativa, fondo global suave, tipografia de titulos mas formal, paneles transluidos con sombra ligera y botones principales con degradado azul.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/index.css, src/components/Layout.jsx
+Descripcion: Estilo visual ajustado segun referencia: fondo gris/lavanda con forma suave, sidebar blanca flotante con bordes redondeados, iconos de navegacion y acento azul-violeta mas vivo.
+Estado: probado en local con eslint enfocado y npm run build.

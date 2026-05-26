@@ -154,7 +154,7 @@ export default function Catalogo() {
       PRESTADO: '#d97706',
       FUERA_DE_SERVICIO: '#dc2626',
     }
-    return colores[estado] || '#64748b'
+    return colores[estado] || 'var(--muted-ink)'
   }
 
   const totalPaginas = Math.ceil(total / POR_PAGINA)
@@ -167,12 +167,12 @@ export default function Catalogo() {
   }
 
   const cardStyle = {
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    background: 'white',
+    background: 'var(--surface-panel)',
   }
 
   return (
@@ -200,7 +200,7 @@ export default function Catalogo() {
         <button onClick={handleBuscar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Buscar</button>
         <button onClick={handleLimpiar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Limpiar</button>
       </div>
-      <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', marginBottom: '24px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid var(--border-soft)', borderRadius: '8px', background: 'var(--surface-muted)', marginBottom: '24px', flexWrap: 'wrap' }}>
         {[
           { id: 'activos', label: 'Catalogo activo' },
           { id: 'fuera_servicio', label: 'Fuera de servicio' },
@@ -215,7 +215,7 @@ export default function Catalogo() {
                 borderRadius: '6px',
                 padding: '8px 12px',
                 cursor: 'pointer',
-                background: activo ? '#2563eb' : 'transparent',
+                background: activo ? 'var(--brand-primary)' : 'transparent',
                 color: activo ? 'white' : '#475569',
                 fontSize: '13px',
                 fontWeight: 900,
@@ -261,7 +261,7 @@ export default function Catalogo() {
                     <img
                       src={libro.imagen_url}
                       alt={libro.titulo}
-                      style={{ width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                      style={{ width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-soft)' }}
                       onError={() => setImagenesRotas(prev => ({ ...prev, [libro.id_titulo]: true }))}
                     />
                   )}
@@ -301,7 +301,7 @@ export default function Catalogo() {
                   {(libro.ejemplar || []).length > 0 && (
                     <div style={{ display: 'grid', gap: '4px', marginTop: '8px' }}>
                       {(libro.ejemplar || []).slice(0, 3).map(ejemplar => (
-                        <div key={ejemplar.id_ejemplar} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', color: '#64748b', fontSize: '11px' }}>
+                        <div key={ejemplar.id_ejemplar} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', color: 'var(--muted-ink)', fontSize: '11px' }}>
                           <span>{ejemplar.codigo_inventario}</span>
                           <span style={{ color: colorEstadoEjemplar(ejemplar.estado), fontWeight: 800 }}>
                             {estadoEjemplarTexto(ejemplar.estado)}
@@ -309,7 +309,7 @@ export default function Catalogo() {
                         </div>
                       ))}
                       {(libro.ejemplar || []).length > 3 && (
-                        <span style={{ color: '#64748b', fontSize: '11px' }}>
+                        <span style={{ color: 'var(--muted-ink)', fontSize: '11px' }}>
                           +{libro.ejemplar.length - 3} ejemplares mas
                         </span>
                       )}

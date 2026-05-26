@@ -410,8 +410,8 @@ export default function GestionCatalogo() {
     borderRadius: '10px',
     padding: '11px 12px',
     fontSize: '14px',
-    color: '#0f172a',
-    background: 'white',
+    color: 'var(--ink)',
+    background: 'var(--surface-panel)',
     boxSizing: 'border-box',
     outline: 'none',
   }
@@ -427,16 +427,17 @@ export default function GestionCatalogo() {
   }
 
   const panelStyle = {
-    background: 'white',
-    border: '1px solid #e2e8f0',
+    background: 'var(--surface-panel)',
+    border: '1px solid var(--border-soft)',
     borderRadius: '16px',
-    boxShadow: '0 18px 40px rgba(15, 23, 42, 0.06)',
+    boxShadow: 'var(--shadow-panel)',
+    backdropFilter: 'blur(12px)',
   }
 
   const primaryButton = {
     border: 'none',
     borderRadius: '10px',
-    background: '#2563eb',
+    background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))',
     color: 'white',
     padding: '11px 16px',
     fontSize: '14px',
@@ -448,9 +449,9 @@ export default function GestionCatalogo() {
   }
 
   const secondaryButton = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '10px',
-    background: 'white',
+    background: 'var(--surface-panel)',
     color: '#334155',
     padding: '10px 14px',
     fontSize: '14px',
@@ -483,7 +484,7 @@ export default function GestionCatalogo() {
   })
 
   const metricas = [
-    { label: 'Títulos activos', value: resumenCatalogo.titulos, icon: BookOpen, color: '#2563eb' },
+    { label: 'Títulos activos', value: resumenCatalogo.titulos, icon: BookOpen, color: 'var(--brand-primary)' },
     { label: 'Ejemplares', value: resumenCatalogo.ejemplares, icon: Library, color: '#059669' },
     { label: 'Disponibles', value: resumenCatalogo.disponibles, icon: CheckCircle2, color: '#16a34a' },
     { label: 'Fuera de servicio', value: resumenCatalogo.fueraServicio, icon: Archive, color: '#dc2626' },
@@ -498,12 +499,12 @@ export default function GestionCatalogo() {
     return (
       <tr key={titulo.id_titulo} style={{ borderBottom: '1px solid #edf2f7' }}>
         <td style={{ padding: '14px 10px' }}>
-          <strong style={{ display: 'block', color: '#0f172a' }}>{titulo.titulo}</strong>
-          <span style={{ color: '#64748b', fontSize: '13px' }}>{titulo.autor}</span>
+          <strong style={{ display: 'block', color: 'var(--ink)' }}>{titulo.titulo}</strong>
+          <span style={{ color: 'var(--muted-ink)', fontSize: '13px' }}>{titulo.autor}</span>
         </td>
         <td style={{ padding: '14px 10px', color: '#475569' }}>
           <span style={{ display: 'block', fontWeight: 700 }}>{titulo.categoria?.nombre || 'Sin categoría'}</span>
-          <span style={{ fontSize: '12px', color: '#94a3b8' }}>{titulo.categoria?.codigo_dewey || 'Sin Dewey'}</span>
+          <span style={{ fontSize: '12px', color: 'rgba(100, 116, 139, 0.68)' }}>{titulo.categoria?.codigo_dewey || 'Sin Dewey'}</span>
         </td>
         <td style={{ padding: '14px 10px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -543,7 +544,7 @@ export default function GestionCatalogo() {
     return (
       <tr key={est.id_establecimiento} style={{ borderBottom: '1px solid #edf2f7' }}>
         <td style={{ padding: '14px 10px' }}>
-          <strong style={{ color: '#0f172a' }}>{est.nombre}</strong>
+          <strong style={{ color: 'var(--ink)' }}>{est.nombre}</strong>
         </td>
         <td style={{ padding: '14px 10px', color: '#475569', fontSize: '13px' }}>
           {est.establecimiento_nivel?.map(en => en.niveleducativo?.nombre).filter(Boolean).join(', ') || 'Sin niveles'}
@@ -585,13 +586,13 @@ export default function GestionCatalogo() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '28px', color: '#0f172a' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--surface-muted)', padding: '28px', color: 'var(--ink)' }}>
       <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px' }}>
           <div>
             <span style={{ ...pill('#e0f2fe', '#0369a1'), marginBottom: '10px' }}>Administración</span>
             <h1 style={{ margin: '0 0 6px', fontSize: '32px', letterSpacing: 0 }}>Gestión de catálogo</h1>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '15px' }}>
+            <p style={{ margin: 0, color: 'var(--muted-ink)', fontSize: '15px' }}>
               Registra títulos, genera ejemplares y mantiene ordenado el inventario de la biblioteca.
             </p>
           </div>
@@ -606,7 +607,7 @@ export default function GestionCatalogo() {
             return (
               <article key={metrica.label} style={{ ...panelStyle, padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 800 }}>{metrica.label}</span>
+                  <span style={{ color: 'var(--muted-ink)', fontSize: '13px', fontWeight: 800 }}>{metrica.label}</span>
                   <Icon size={20} color={metrica.color} />
                 </div>
                 <strong style={{ fontSize: '30px', lineHeight: 1 }}>{metrica.value}</strong>
@@ -655,7 +656,7 @@ export default function GestionCatalogo() {
             <div style={{ padding: '18px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: '20px' }}>Títulos activos</h2>
-                <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '14px' }}>Los títulos dados de baja quedan separados al final para consulta.</p>
+                <p style={{ margin: '5px 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>Los títulos dados de baja quedan separados al final para consulta.</p>
               </div>
               <span style={{ ...pill('#f1f5f9', '#475569'), alignSelf: 'center' }}>
                 Usa “Añadir copias” en cada título
@@ -664,7 +665,7 @@ export default function GestionCatalogo() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', color: '#64748b', fontSize: '12px', textTransform: 'uppercase' }}>
+                  <tr style={{ textAlign: 'left', color: 'var(--muted-ink)', fontSize: '12px', textTransform: 'uppercase' }}>
                     <th style={{ padding: '12px 10px 12px 20px' }}>Título</th>
                     <th style={{ padding: '12px 10px' }}>Categoría</th>
                     <th style={{ padding: '12px 10px' }}>Ejemplares</th>
@@ -673,22 +674,22 @@ export default function GestionCatalogo() {
                 </thead>
                 <tbody>
                   {titulosActivos.length === 0 ? (
-                    <tr><td colSpan="4" style={{ padding: '24px 20px', color: '#64748b' }}>Sin títulos activos.</td></tr>
+                    <tr><td colSpan="4" style={{ padding: '24px 20px', color: 'var(--muted-ink)' }}>Sin títulos activos.</td></tr>
                   ) : titulosActivos.map(titulo => renderTitleRow(titulo))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+            <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: 'var(--surface-muted)' }}>
               <button style={secondaryButton} onClick={() => setMostrarTitulosBaja(prev => !prev)}>
                 <Archive size={16} /> Títulos dados de baja ({titulosBaja.length})
               </button>
               {mostrarTitulosBaja && (
                 <div style={{ marginTop: '14px', overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px', background: 'white', borderRadius: '12px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px', background: 'var(--surface-panel)', borderRadius: '12px', overflow: 'hidden' }}>
                     <tbody>
                       {titulosBaja.length === 0 ? (
-                        <tr><td style={{ padding: '18px', color: '#64748b' }}>No hay títulos dados de baja.</td></tr>
+                        <tr><td style={{ padding: '18px', color: 'var(--muted-ink)' }}>No hay títulos dados de baja.</td></tr>
                       ) : titulosBaja.map(titulo => renderTitleRow(titulo, true))}
                     </tbody>
                   </table>
@@ -760,14 +761,14 @@ export default function GestionCatalogo() {
               {modoFormulario === 'ejemplar' && (
                 <>
                   {idTituloEjemplar ? (
-                    <div style={{ marginBottom: '14px', padding: '14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                      <span style={{ display: 'block', color: '#64748b', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                    <div style={{ marginBottom: '14px', padding: '14px', borderRadius: '12px', background: 'var(--surface-muted)', border: '1px solid var(--border-soft)' }}>
+                      <span style={{ display: 'block', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
                         Título seleccionado
                       </span>
                       <strong style={{ display: 'block', marginTop: '4px' }}>
                         {titulos.find(t => String(t.id_titulo) === idTituloEjemplar)?.titulo || 'Título'}
                       </strong>
-                      <span style={{ color: '#64748b', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--muted-ink)', fontSize: '13px' }}>
                         Dewey: {ubicacionDewey || 'sin código asignado'}
                       </span>
                     </div>
@@ -796,7 +797,7 @@ export default function GestionCatalogo() {
 
             <aside style={{ ...panelStyle, padding: '20px', alignSelf: 'start' }}>
               <h3 style={{ margin: '0 0 8px', fontSize: '18px' }}>Códigos automáticos</h3>
-              <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '14px' }}>
+              <p style={{ margin: '0 0 14px', color: 'var(--muted-ink)', fontSize: '14px' }}>
                 Se generan al guardar con el siguiente correlativo disponible.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
@@ -849,21 +850,21 @@ export default function GestionCatalogo() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
                   <tbody>
                     {establecimientosActivos.length === 0 ? (
-                      <tr><td style={{ padding: '22px 20px', color: '#64748b' }}>Sin establecimientos activos.</td></tr>
+                      <tr><td style={{ padding: '22px 20px', color: 'var(--muted-ink)' }}>Sin establecimientos activos.</td></tr>
                     ) : establecimientosActivos.map(est => renderEstablecimientoRow(est))}
                   </tbody>
                 </table>
               </div>
-              <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div style={{ padding: '18px 20px', borderTop: '1px solid #e2e8f0', background: 'var(--surface-muted)' }}>
                 <button style={secondaryButton} onClick={() => setMostrarEstablecimientosBaja(prev => !prev)}>
                   <Archive size={16} /> Establecimientos dados de baja ({establecimientosBaja.length})
                 </button>
                 {mostrarEstablecimientosBaja && (
                   <div style={{ marginTop: '14px', overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', background: 'white' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px', background: 'var(--surface-panel)' }}>
                       <tbody>
                         {establecimientosBaja.length === 0 ? (
-                          <tr><td style={{ padding: '18px', color: '#64748b' }}>No hay establecimientos dados de baja.</td></tr>
+                          <tr><td style={{ padding: '18px', color: 'var(--muted-ink)' }}>No hay establecimientos dados de baja.</td></tr>
                         ) : establecimientosBaja.map(est => renderEstablecimientoRow(est, true))}
                       </tbody>
                     </table>
@@ -877,7 +878,7 @@ export default function GestionCatalogo() {
         {vista === 'configuracion' && config && (
           <section style={{ ...panelStyle, padding: '20px', maxWidth: '620px' }}>
             <h2 style={{ margin: '0 0 6px', fontSize: '20px' }}>Configuración de multas</h2>
-            <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: '14px' }}>
+            <p style={{ margin: '0 0 18px', color: 'var(--muted-ink)', fontSize: '14px' }}>
               Estos valores se aplican en devoluciones y panel de alertas.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>

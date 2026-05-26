@@ -137,19 +137,19 @@ export default function Reportes() {
     return `${Math.max(5, Math.round((valor / Math.max(1, maximo)) * 100))}%`
   }
 
-  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
   const inputStyle = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
     padding: '10px 12px',
     fontSize: '14px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
   }
   const buttonPrimary = {
     border: 'none',
     borderRadius: '8px',
-    background: cargando || !fechaInicio || !fechaFin ? '#94a3b8' : '#2563eb',
+    background: cargando || !fechaInicio || !fechaFin ? 'rgba(100, 116, 139, 0.68)' : 'var(--brand-primary)',
     color: 'white',
     padding: '10px 14px',
     fontSize: '14px',
@@ -162,7 +162,7 @@ export default function Reportes() {
   }
 
   const metricas = [
-    { label: 'Prestamos', valor: analisis.totalPrestamos, color: '#2563eb', icon: BookOpen },
+    { label: 'Prestamos', valor: analisis.totalPrestamos, color: 'var(--brand-primary)', icon: BookOpen },
     { label: 'Tasa devolucion', valor: `${analisis.tasaDevolucion}%`, color: '#16a34a', icon: TrendingUp },
     { label: 'Multas', valor: multas.length, color: '#dc2626', icon: CreditCard },
     { label: 'Usuarios recurrentes', valor: usuariosRecurrentes.length, color: '#7c3aed', icon: Repeat2 },
@@ -170,7 +170,7 @@ export default function Reportes() {
 
   const distribucionTipo = [
     { label: 'Formales', valor: analisis.formales, color: '#047857' },
-    { label: 'Inmediatos', valor: analisis.inmediatos, color: '#1d4ed8' },
+    { label: 'Inmediatos', valor: analisis.inmediatos, color: 'var(--brand-primary)' },
   ]
   const distribucionEstado = [
     { label: 'Activos', valor: analisis.activos, color: '#d97706' },
@@ -181,12 +181,12 @@ export default function Reportes() {
   const maxUsuarios = Math.max(1, ...usuariosRecurrentes.map(item => item.cantidad))
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: 'var(--surface-muted)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
-          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Administracion</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Reportes</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+          <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Administracion</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: 'var(--ink)' }}>Reportes</h1>
+          <p style={{ margin: '8px 0 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>
             Analisis de prestamos, demanda de libros, multas y usuarios recurrentes.
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function Reportes() {
 
       {!generado && (
         <section style={panelStyle}>
-          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '28px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+          <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '28px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
             Selecciona un rango de fechas para generar el dashboard.
           </div>
         </section>
@@ -230,10 +230,10 @@ export default function Reportes() {
                 <section key={item.label} style={panelStyle}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
                     <div>
-                      <p style={{ margin: '0 0 8px 0', color: '#64748b', fontSize: '13px', fontWeight: 800 }}>{item.label}</p>
+                      <p style={{ margin: '0 0 8px 0', color: 'var(--muted-ink)', fontSize: '13px', fontWeight: 800 }}>{item.label}</p>
                       <p style={{ margin: 0, color: item.color, fontSize: '32px', fontWeight: 950 }}>{item.valor}</p>
                     </div>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#f8fafc', color: item.color, display: 'grid', placeItems: 'center' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'var(--surface-muted)', color: item.color, display: 'grid', placeItems: 'center' }}>
                       <Icon size={21} />
                     </div>
                   </div>
@@ -245,8 +245,8 @@ export default function Reportes() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '20px' }}>
             <section style={panelStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <BarChart3 size={20} color="#2563eb" />
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Distribucion de prestamos</h2>
+                <BarChart3 size={20} color="var(--brand-primary)" />
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Distribucion de prestamos</h2>
               </div>
               {[...distribucionTipo, ...distribucionEstado].map(item => (
                 <div key={item.label} style={{ marginBottom: '12px' }}>
@@ -264,15 +264,15 @@ export default function Reportes() {
             <section style={panelStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <CreditCard size={20} color="#dc2626" />
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Multas del periodo</h2>
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Multas del periodo</h2>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Generado</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Generado</p>
                   <p style={{ margin: 0, color: '#dc2626', fontSize: '22px', fontWeight: 900 }}>Q{analisis.totalMultas.toFixed(2)}</p>
                 </div>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Recaudado</p>
+                <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+                  <p style={{ margin: '0 0 4px 0', color: 'var(--muted-ink)', fontSize: '12px', fontWeight: 800 }}>Recaudado</p>
                   <p style={{ margin: 0, color: '#16a34a', fontSize: '22px', fontWeight: 900 }}>Q{analisis.recaudado.toFixed(2)}</p>
                 </div>
               </div>
@@ -296,11 +296,11 @@ export default function Reportes() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '20px' }}>
             <section style={panelStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <BookOpen size={20} color="#2563eb" />
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Libros mas solicitados</h2>
+                <BookOpen size={20} color="var(--brand-primary)" />
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Libros mas solicitados</h2>
               </div>
               {masSolicitados.length === 0 ? (
-                <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>Sin datos.</div>
+                <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>Sin datos.</div>
               ) : (
                 masSolicitados.map((item, index) => (
                   <div key={item.titulo} style={{ marginBottom: '13px' }}>
@@ -309,7 +309,7 @@ export default function Reportes() {
                       <span>{item.cantidad}</span>
                     </div>
                     <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
-                      <div style={{ width: barra(item.cantidad, maxLibros), height: '100%', background: '#2563eb', borderRadius: '999px' }} />
+                      <div style={{ width: barra(item.cantidad, maxLibros), height: '100%', background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))', borderRadius: '999px' }} />
                     </div>
                   </div>
                 ))
@@ -319,10 +319,10 @@ export default function Reportes() {
             <section style={panelStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <Users size={20} color="#7c3aed" />
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Usuarios recurrentes</h2>
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--ink)' }}>Usuarios recurrentes</h2>
               </div>
               {usuariosRecurrentes.length === 0 ? (
-                <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+                <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
                   No hay usuarios con 2 o mas prestamos en este periodo.
                 </div>
               ) : (
@@ -335,7 +335,7 @@ export default function Reportes() {
                     <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
                       <div style={{ width: barra(usuario.cantidad, maxUsuarios), height: '100%', background: '#7c3aed', borderRadius: '999px' }} />
                     </div>
-                    <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '12px' }}>
+                    <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '12px' }}>
                       Formal: {usuario.formales} · Inmediato: {usuario.inmediatos}
                     </p>
                   </div>
@@ -345,14 +345,14 @@ export default function Reportes() {
           </div>
 
           <section style={panelStyle}>
-            <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', color: '#0f172a' }}>Prestamos en el periodo</h2>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', color: 'var(--ink)' }}>Prestamos en el periodo</h2>
             {prestamos.length === 0 ? (
-              <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>Sin prestamos en este periodo.</div>
+              <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>Sin prestamos en este periodo.</div>
             ) : (
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '860px' }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                    <tr style={{ background: 'var(--surface-muted)', color: '#475569', textAlign: 'left' }}>
                       <th style={{ padding: '12px' }}>Usuario</th>
                       <th style={{ padding: '12px' }}>Libro</th>
                       <th style={{ padding: '12px' }}>Tipo</th>
@@ -364,7 +364,7 @@ export default function Reportes() {
                   <tbody>
                     {prestamos.slice(0, 12).map(p => (
                       <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px', color: '#0f172a', fontWeight: 800 }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
+                        <td style={{ padding: '12px', color: 'var(--ink)', fontWeight: 800 }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
                         <td style={{ padding: '12px', color: '#334155' }}>{p.ejemplar?.titulo?.titulo}</td>
                         <td style={{ padding: '12px', color: '#475569' }}>{p.tipo === 'FORMAL' ? 'Formal' : 'Inmediato'}</td>
                         <td style={{ padding: '12px', color: estadoColor(p.estado), fontWeight: 900 }}>{p.estado}</td>

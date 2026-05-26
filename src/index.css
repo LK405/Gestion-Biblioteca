@@ -49,13 +49,13 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --background: oklch(0.984 0.012 253);
+    --foreground: oklch(0.18 0.045 255);
+    --card: oklch(1 0 0 / 0.92);
+    --card-foreground: oklch(0.18 0.045 255);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: oklch(0.47 0.19 258);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -64,7 +64,7 @@
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
+    --border: oklch(0.88 0.028 252);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
     --chart-1: oklch(0.87 0 0);
@@ -72,7 +72,20 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    --radius: 0.7rem;
+    --app-background: radial-gradient(ellipse 520px 920px at 27% 50%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.46) 40%, transparent 41%),
+        linear-gradient(90deg, #dedfe3 0%, #eeeeF4 45%, #f8f8fb 100%);
+    --surface-panel: rgba(255, 255, 255, 0.94);
+    --surface-muted: rgba(246, 246, 251, 0.74);
+    --surface-glass: rgba(255, 255, 255, 0.72);
+    --border-soft: rgba(148, 163, 184, 0.28);
+    --brand-primary: #4456f4;
+    --brand-primary-strong: #2638d9;
+    --brand-accent: #536dfe;
+    --ink: #0f172a;
+    --muted-ink: #64748b;
+    --shadow-panel: 0 12px 28px rgba(31, 41, 55, 0.13);
+    --shadow-soft: 0 12px 28px rgba(68, 86, 244, 0.16);
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -123,8 +136,39 @@
     }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    min-width: 320px;
+    background: var(--app-background);
+    color: var(--ink);
+    line-height: 1.5;
     }
   html {
     @apply font-sans;
+    background: var(--app-background);
     }
+  h1, h2, h3 {
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+  }
+  input, select, textarea, button {
+    font-family: inherit;
+  }
+  ::selection {
+    background: rgba(29, 78, 216, 0.18);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.55);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(30, 64, 175, 0.34);
+    border-radius: 999px;
+    border: 2px solid rgba(248, 250, 252, 0.8);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(30, 64, 175, 0.5);
+  }
 }

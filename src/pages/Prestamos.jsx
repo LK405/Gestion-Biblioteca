@@ -422,20 +422,20 @@ export default function Prestamos() {
   const inputStyle = {
     width: '100%',
     boxSizing: 'border-box',
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
     padding: '11px 12px',
     fontSize: '14px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
   }
   const labelStyle = { fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '6px', color: '#334155' }
   const fieldStyle = { marginBottom: '14px' }
-  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
   const buttonPrimary = {
     border: 'none',
     borderRadius: '8px',
-    background: guardando ? '#94a3b8' : '#2563eb',
+    background: guardando ? 'rgba(100, 116, 139, 0.68)' : 'var(--brand-primary)',
     color: 'white',
     padding: '12px 16px',
     fontSize: '14px',
@@ -444,10 +444,10 @@ export default function Prestamos() {
     width: '100%',
   }
   const buttonSecondary = {
-    border: '1px solid #cbd5e1',
+    border: '1px solid var(--border-soft)',
     borderRadius: '8px',
-    background: 'white',
-    color: '#0f172a',
+    background: 'var(--surface-panel)',
+    color: 'var(--ink)',
     padding: '10px 14px',
     fontSize: '14px',
     fontWeight: 600,
@@ -466,8 +466,8 @@ export default function Prestamos() {
     gap: '8px',
     padding: '9px 12px',
     borderRadius: '999px',
-    background: activo ? '#e0f2fe' : '#f8fafc',
-    color: activo ? '#0369a1' : '#64748b',
+    background: activo ? '#e0f2fe' : 'var(--surface-muted)',
+    color: activo ? '#0369a1' : 'var(--muted-ink)',
     border: `1px solid ${activo ? '#bae6fd' : '#e2e8f0'}`,
     fontSize: '13px',
     fontWeight: 700,
@@ -475,9 +475,9 @@ export default function Prestamos() {
   })
   const tabStyle = activo => ({
     border: 'none',
-    borderBottom: `3px solid ${activo ? '#2563eb' : 'transparent'}`,
+    borderBottom: `3px solid ${activo ? 'var(--brand-primary)' : 'transparent'}`,
     background: activo ? '#eff6ff' : 'transparent',
-    color: activo ? '#1d4ed8' : '#64748b',
+    color: activo ? '#1d4ed8' : 'var(--muted-ink)',
     padding: '11px 14px',
     cursor: 'pointer',
     fontSize: '14px',
@@ -488,14 +488,14 @@ export default function Prestamos() {
   })
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: 'var(--surface-muted)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
-          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulación</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>
+          <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulación</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: 'var(--ink)' }}>
             {vistaPrestamos === 'registrar' ? 'Registrar préstamo' : 'Préstamos realizados'}
           </h1>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+          <p style={{ margin: '8px 0 0 0', color: 'var(--muted-ink)', fontSize: '14px' }}>
             {vistaPrestamos === 'registrar'
               ? 'Selecciona un ejemplar, confirma el lector y revisa el resumen antes de guardar.'
               : 'Consulta, filtra y edita los préstamos registrados sin volver al formulario.'}
@@ -564,8 +564,8 @@ export default function Prestamos() {
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Tipo de préstamo</h2>
-                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--ink)' }}>Tipo de préstamo</h2>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
                   {tipoFormal ? 'Formal · 7 días' : 'Inmediato · regresa hoy'}
                 </p>
               </div>
@@ -576,7 +576,7 @@ export default function Prestamos() {
 
             {tipoAbierto && (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap' }}>
-              <p style={{ margin: 0, color: '#64748b', fontSize: '13px', maxWidth: '320px' }}>
+              <p style={{ margin: 0, color: 'var(--muted-ink)', fontSize: '13px', maxWidth: '320px' }}>
                 Elige el tipo antes de buscar el libro. Puedes contraer este bloque cuando ya esté decidido.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', minWidth: '320px' }}>
@@ -591,7 +591,7 @@ export default function Prestamos() {
                       key={opcion.value}
                       onClick={() => { setTipo(opcion.value); limpiarFormulario(); setTipoAbierto(false) }}
                       style={{
-                        border: `1px solid ${activo ? '#2563eb' : '#cbd5e1'}`,
+                        border: `1px solid ${activo ? 'var(--brand-primary)' : 'var(--border-soft)'}`,
                         borderRadius: '8px',
                         background: activo ? '#eff6ff' : 'white',
                         color: activo ? '#1d4ed8' : '#334155',
@@ -606,7 +606,7 @@ export default function Prestamos() {
                       <Icon size={18} />
                       <span style={{ display: 'grid' }}>
                         <strong style={{ fontSize: '13px' }}>{opcion.label}</strong>
-                        <span style={{ fontSize: '12px', color: activo ? '#2563eb' : '#64748b' }}>{opcion.meta}</span>
+                        <span style={{ fontSize: '12px', color: activo ? 'var(--brand-primary)' : 'var(--muted-ink)' }}>{opcion.meta}</span>
                       </span>
                     </button>
                   )
@@ -632,8 +632,8 @@ export default function Prestamos() {
                 <BookOpen size={18} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Libro y ejemplar</h2>
-                <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#64748b' }}>Busca por título y elige una copia disponible.</p>
+                <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--ink)' }}>Libro y ejemplar</h2>
+                <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>Busca por título y elige una copia disponible.</p>
               </div>
             </div>
 
@@ -659,7 +659,7 @@ export default function Prestamos() {
             </div>
 
             {busquedaLibroRealizada && libros.length === 0 && (
-              <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '18px', background: '#f8fafc', color: '#64748b', fontSize: '14px' }}>
+              <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '18px', background: 'var(--surface-muted)', color: 'var(--muted-ink)', fontSize: '14px' }}>
                 No se encontraron libros con esa búsqueda. Puedes probar con título, autor, ISBN o código de inventario, sin importar mayúsculas ni tildes.
               </div>
             )}
@@ -670,11 +670,11 @@ export default function Prestamos() {
                   const disponibles = libro.ejemplar?.filter(e => e.estado === 'DISPONIBLE') || []
                   const bloqueadoFormal = tipoFormal && !libro.categoria?.permite_prestamo_formal
                   return (
-                    <article key={libro.id_titulo} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#fbfdff' }}>
+                    <article key={libro.id_titulo} style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '14px', background: '#fbfdff' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'start' }}>
                         <div>
-                          <h3 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>{libro.titulo}</h3>
-                          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                          <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--ink)' }}>{libro.titulo}</h3>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>
                             {libro.autor} · {libro.categoria?.nombre}
                           </p>
                         </div>
@@ -712,7 +712,7 @@ export default function Prestamos() {
                                     setPasoActivo('lector')
                                   }}
                                   style={{
-                                    border: `1px solid ${activo ? '#16a34a' : '#cbd5e1'}`,
+                                    border: `1px solid ${activo ? '#16a34a' : 'var(--border-soft)'}`,
                                     borderRadius: '999px',
                                     background: activo ? '#16a34a' : 'white',
                                     color: activo ? 'white' : '#334155',
@@ -742,8 +742,8 @@ export default function Prestamos() {
                 <User size={18} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>Datos del lector</h2>
-                <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--ink)' }}>Datos del lector</h2>
+                <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>
                   {tipoFormal ? 'Usa un lector existente o registra uno nuevo.' : 'Registra a quién se entrega el libro por salida inmediata.'}
                 </p>
               </div>
@@ -753,7 +753,7 @@ export default function Prestamos() {
               <div>
 
                 {modoLector === 'buscar' && (
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px' }}>
+            <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '14px' }}>
               <label style={labelStyle}>Buscar lector existente por nombre o DPI</label>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                 <input
@@ -772,7 +772,7 @@ export default function Prestamos() {
                   {resultadosLector.map(l => (
                     <div
                       key={l.id_lector}
-                      style={{ padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', background: 'white' }}
+                      style={{ padding: '10px', border: '1px solid var(--border-soft)', borderRadius: '8px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', background: 'var(--surface-panel)' }}
                     >
                       <span style={{ fontSize: '13px' }}>
                         {l.nombre} {l.dpi ? `— DPI: ${l.dpi}` : ''} {l.telefono ? `— Tel: ${l.telefono}` : ''}
@@ -930,39 +930,39 @@ export default function Prestamos() {
         </main>
 
         <aside style={{ ...panelStyle, position: 'sticky', top: '20px' }}>
-          <h2 style={{ margin: '0 0 14px 0', fontSize: '18px', color: '#0f172a' }}>Resumen</h2>
+          <h2 style={{ margin: '0 0 14px 0', fontSize: '18px', color: 'var(--ink)' }}>Resumen</h2>
 
           <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Ejemplar</p>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: 'var(--muted-ink)', textTransform: 'uppercase' }}>Ejemplar</p>
               {ejemplarSeleccionado ? (
                 <>
-                  <p style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>{ejemplarSeleccionado.titulo || 'Libro seleccionado'}</p>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontWeight: 800, color: 'var(--ink)' }}>{ejemplarSeleccionado.titulo || 'Libro seleccionado'}</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>
                     {ejemplarSeleccionado.codigo_inventario} · {ejemplarSeleccionado.ubicacion_dewey}
                   </p>
                 </>
               ) : (
-                <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Pendiente de selección</p>
+                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(100, 116, 139, 0.68)' }}>Pendiente de selección</p>
               )}
             </div>
 
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Lector</p>
-              <p style={{ margin: 0, fontWeight: 800, color: lectorListo ? '#0f172a' : '#94a3b8' }}>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: 'var(--muted-ink)', textTransform: 'uppercase' }}>Lector</p>
+              <p style={{ margin: 0, fontWeight: 800, color: lectorListo ? '#0f172a' : 'rgba(100, 116, 139, 0.68)' }}>
                 {tipoFormal
                   ? lectorEncontrado?.nombre || nombre || 'Pendiente'
                   : nombreInmediato || 'Pendiente'}
               </p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>
                 {tipoFormal ? 'Préstamo formal' : 'Préstamo inmediato'}
               </p>
             </div>
 
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
-              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Fecha límite</p>
-              <p style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>{fechaLimitePreview}</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+            <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', padding: '12px', background: 'var(--surface-muted)' }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 800, color: 'var(--muted-ink)', textTransform: 'uppercase' }}>Fecha límite</p>
+              <p style={{ margin: 0, fontWeight: 800, color: 'var(--ink)' }}>{fechaLimitePreview}</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--muted-ink)' }}>
                 {tipoFormal ? 'Se calcula a 7 días desde hoy.' : 'Debe regresar hoy.'}
               </p>
             </div>
@@ -1000,7 +1000,7 @@ export default function Prestamos() {
           background: 'rgba(0,0,0,0.4)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div style={{ background: 'white', borderRadius: '8px', padding: '24px', width: '440px', maxWidth: '90vw' }}>
+          <div style={{ background: 'var(--surface-panel)', borderRadius: '8px', padding: '24px', width: '440px', maxWidth: '90vw' }}>
             <h3 style={{ margin: '0 0 16px 0' }}>Editar préstamo</h3>
             <p style={{ fontSize: '13px', color: '#666', margin: '0 0 16px 0' }}>
               Tipo: {prestamoEditando.tipo} — Solo se pueden editar campos básicos.
@@ -1066,7 +1066,7 @@ export default function Prestamos() {
               <button
                 onClick={guardarEdicionPrestamo}
                 disabled={guardandoEdicion}
-                style={{ padding: '10px 20px', cursor: 'pointer', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '4px' }}
+                style={{ padding: '10px 20px', cursor: 'pointer', background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-accent))', color: 'white', border: 'none', borderRadius: '4px' }}
               >
                 {guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}
               </button>
@@ -1085,9 +1085,9 @@ export default function Prestamos() {
       <section style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap' }}>
           <div>
-            <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>Consulta</p>
-            <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a' }}>Historial de préstamos</h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+            <p style={{ margin: '0 0 6px 0', color: 'var(--brand-primary)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>Consulta</p>
+            <h2 style={{ margin: 0, fontSize: '22px', color: 'var(--ink)' }}>Historial de préstamos</h2>
+            <p style={{ margin: '6px 0 0 0', color: 'var(--muted-ink)', fontSize: '13px' }}>
               Revisa, filtra y edita préstamos activos sin mezclarlo con el registro nuevo.
             </p>
           </div>
@@ -1119,22 +1119,22 @@ export default function Prestamos() {
           </button>
         </div>
 
-        {cargandoHistorial && <p style={{ color: '#64748b', margin: 0 }}>Cargando historial...</p>}
+        {cargandoHistorial && <p style={{ color: 'var(--muted-ink)', margin: 0 }}>Cargando historial...</p>}
 
         {!cargandoHistorial && (
           <>
-            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--muted-ink)', marginBottom: '12px' }}>
               {totalH} {totalH === 1 ? 'préstamo encontrado' : 'préstamos encontrados'}
             </p>
             {historialPrestamos.length === 0 ? (
-              <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+              <div style={{ border: '1px dashed var(--border-soft)', borderRadius: '8px', padding: '22px', textAlign: 'center', color: 'var(--muted-ink)', background: 'var(--surface-muted)' }}>
                 Sin préstamos en este período.
               </div>
             ) : (
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <div style={{ border: '1px solid var(--border-soft)', borderRadius: '8px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '760px' }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc', textAlign: 'left', color: '#475569' }}>
+                    <tr style={{ background: 'var(--surface-muted)', textAlign: 'left', color: '#475569' }}>
                       <th style={{ padding: '12px' }}>Lector</th>
                       <th style={{ padding: '12px' }}>Libro</th>
                       <th style={{ padding: '12px' }}>Tipo</th>
@@ -1153,7 +1153,7 @@ export default function Prestamos() {
                           : { bg: '#fee2e2', text: '#991b1b' }
                       return (
                         <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: '12px', fontWeight: 700, color: '#0f172a' }}>{p.lector?.nombre || p.nombre_inmediato || '—'}</td>
+                          <td style={{ padding: '12px', fontWeight: 700, color: 'var(--ink)' }}>{p.lector?.nombre || p.nombre_inmediato || '—'}</td>
                           <td style={{ padding: '12px', color: '#334155' }}>{p.ejemplar?.titulo?.titulo}</td>
                           <td style={{ padding: '12px', color: '#475569' }}>{p.tipo === 'FORMAL' ? 'Formal' : 'Inmediato'}</td>
                           <td style={{ padding: '12px' }}>
