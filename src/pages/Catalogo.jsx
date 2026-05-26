@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabase'
 const POR_PAGINA = 20
 const IMAGEN_PLACEHOLDER = 'https://via.placeholder.com/150x200?text=Libro'
 
+function normalizarTexto(texto) {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 export default function Catalogo() {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
@@ -14,47 +22,65 @@ export default function Catalogo() {
   const [pagina, setPagina] = useState(1)
   const [total, setTotal] = useState(0)
 
-  useEffect(() => {
-    cargarTitulos(1, '', 'general')
-  }, [])
-
   async function cargarTitulos(pag, termino, filtroActual) {
     setCargando(true)
-    const desde = (pag - 1) * POR_PAGINA
-    const hasta = desde + POR_PAGINA - 1
+    const terminoNormalizado = normalizarTexto(termino)
 
-    let query = supabase
-  .from('titulo')
-  .select(`
-    id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url,
-    categoria (nombre, codigo_dewey, permite_prestamo_formal),
-    ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, estado)
-  `, { count: 'exact' })
-  .eq('activo', true)
-  .order('titulo', { ascending: true })
-  .range(desde, hasta)
-
-    if (termino.trim()) {
-      if (filtroActual === 'general') {
-        query = query.or(`titulo.ilike.%${termino}%,autor.ilike.%${termino}%`)
-      } else if (filtroActual === 'titulo') {
-        query = query.ilike('titulo', `%${termino}%`)
-      } else if (filtroActual === 'autor') {
-        query = query.ilike('autor', `%${termino}%`)
-      }
-    }
-
-    const { data, error, count } = await query
+    const { data, error } = await supabase
+      .from('titulo')
+      .select(`
+        id_titulo, titulo, autor, isbn, anio_publicacion, imagen_url,
+        categoria (nombre, codigo_dewey, permite_prestamo_formal),
+        ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, estado)
+      `)
+      .eq('activo', true)
+      .order('titulo', { ascending: true })
 
     if (error) {
       console.error('Error en búsqueda:', error)
       setResultados([])
+      setTotal(0)
     } else {
-      setResultados(data || [])
-      setTotal(count || 0)
+      const lista = data || []
+      const filtrados = terminoNormalizado
+        ? lista.filter(libro => {
+            const camposPorFiltro = {
+              general: [
+                libro.titulo,
+                libro.autor,
+                libro.isbn,
+                libro.categoria?.nombre,
+                libro.categoria?.codigo_dewey,
+                ...(libro.ejemplar || []).map(ej => ej.codigo_inventario),
+                ...(libro.ejemplar || []).map(ej => ej.ubicacion_dewey),
+              ],
+              titulo: [libro.titulo],
+              autor: [libro.autor],
+            }
+            return (camposPorFiltro[filtroActual] || camposPorFiltro.general)
+              .some(campo => normalizarTexto(campo).includes(terminoNormalizado))
+          })
+        : lista
+
+      const desde = (pag - 1) * POR_PAGINA
+      const hasta = desde + POR_PAGINA
+      setResultados(filtrados.slice(desde, hasta))
+      setTotal(filtrados.length)
     }
     setCargando(false)
   }
+
+  useEffect(() => {
+    let activo = true
+
+    async function cargarInicial() {
+      await Promise.resolve()
+      if (activo) cargarTitulos(1, '', 'general')
+    }
+
+    cargarInicial()
+    return () => { activo = false }
+  }, [])
 
   function handleBuscar() {
     setPagina(1)
@@ -116,13 +142,13 @@ export default function Catalogo() {
           onChange={e => setFiltro(e.target.value)}
           style={{ padding: '8px', fontSize: '14px' }}
         >
-          <option value="general">Título o autor</option>
+          <option value="general">Todo el catálogo</option>
           <option value="titulo">Solo título</option>
           <option value="autor">Solo autor</option>
         </select>
         <input
           type="text"
-          placeholder="Buscar..."
+          placeholder="Buscar por título, autor, ISBN, categoría o código..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleBuscar()}
@@ -142,7 +168,9 @@ export default function Catalogo() {
       {cargando && <p>Cargando...</p>}
 
       {!cargando && resultados.length === 0 && (
-        <p style={{ color: '#666' }}>No se encontraron resultados.</p>
+        <p style={{ color: '#666' }}>
+          No se encontraron resultados. Puedes buscar sin importar mayúsculas o tildes.
+        </p>
       )}
 
       {!cargando && (

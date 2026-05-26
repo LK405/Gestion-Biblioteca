@@ -15,7 +15,6 @@ export default function Lectores() {
   const [cargandoHistorial, setCargandoHistorial] = useState(false)
   const [niveles, setNiveles] = useState([])
   const [establecimientos, setEstablecimientos] = useState([])
-  const [establecimientosFiltrados, setEstablecimientosFiltrados] = useState([])
   const [mensaje, setMensaje] = useState({ texto: '', error: false })
   const [guardando, setGuardando] = useState(false)
 
@@ -33,57 +32,55 @@ export default function Lectores() {
   const [editIdEstablecimiento, setEditIdEstablecimiento] = useState('')
   const [editGradoCiclo, setEditGradoCiclo] = useState('')
 
-  useEffect(() => {
-    cargarNiveles()
-    cargarEstablecimientos()
-    cargarLectores(1, '')
-  }, [])
-
-  useEffect(() => {
-  if (editIdNivel) {
-    const filtrados = establecimientos.filter(e =>
-      e.activo &&
-      e.establecimiento_nivel?.some(en => en.id_nivel === parseInt(editIdNivel))
-    )
-    setEstablecimientosFiltrados(filtrados)
-    setEditIdEstablecimiento('')
-  } else {
-    setEstablecimientosFiltrados([])
-  }
-}, [editIdNivel, establecimientos])
-
-  async function cargarNiveles() {
-    const { data } = await supabase.from('niveleducativo').select('*').order('id_nivel')
-    setNiveles(data || [])
-  }
-
-  async function cargarEstablecimientos() {
-  const { data } = await supabase
-    .from('establecimiento')
-    .select('id_establecimiento, nombre, activo, establecimiento_nivel (id_nivel)')
-  setEstablecimientos(data || [])
-}
   async function cargarLectores(pag, termino) {
   setCargando(true)
-  const desde = (pag - 1) * POR_PAGINA
-  const hasta = desde + POR_PAGINA - 1
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('lector')
     .select('id_lector, nombre, dpi, telefono, direccion, es_menor, nombre_tutor, telefono_tutor, dpi_tutor, id_nivel, id_establecimiento, grado_ciclo, registrado_en', { count: 'exact' })
-    .order('registrado_en', { ascending: false })
-    .range(desde, hasta)
+    .order('id_lector', { ascending: false })
 
-  if (termino.trim()) {
-    query = query.ilike('nombre', `%${termino}%`)
+  if (error) {
+    console.error('Error cargando lectores:', error)
+    setLectores([])
+    setTotal(0)
+    setCargando(false)
+    return
   }
 
-  const { data, count, error } = await query
-  if (error) console.error('Error cargando lectores:', error)
-  setLectores(data || [])
-  setTotal(count || 0)
+  const lista = data || []
+  const terminoNormalizado = termino.trim().toLowerCase()
+  const filtrados = terminoNormalizado
+    ? lista.filter(lector => lector.nombre?.toLowerCase().includes(terminoNormalizado))
+    : lista
+  const desde = (pag - 1) * POR_PAGINA
+  const hasta = desde + POR_PAGINA
+
+  setLectores(filtrados.slice(desde, hasta))
+  setTotal(filtrados.length)
   setCargando(false)
 }
+
+  useEffect(() => {
+    let activo = true
+
+    async function cargarDatosIniciales() {
+      const [{ data: nivelesData }, { data: establecimientosData }] = await Promise.all([
+        supabase.from('niveleducativo').select('*').order('id_nivel'),
+        supabase
+          .from('establecimiento')
+          .select('id_establecimiento, nombre, activo, establecimiento_nivel (id_nivel)'),
+      ])
+
+      if (!activo) return
+      setNiveles(nivelesData || [])
+      setEstablecimientos(establecimientosData || [])
+      cargarLectores(1, '')
+    }
+
+    cargarDatosIniciales()
+    return () => { activo = false }
+  }, [])
 
   function handleBuscar() { setPagina(1); cargarLectores(1, busqueda) }
   function handleLimpiar() { setBusqueda(''); setPagina(1); cargarLectores(1, '') }
@@ -168,6 +165,12 @@ export default function Lectores() {
   }
 
   const totalPaginas = Math.ceil(total / POR_PAGINA)
+  const establecimientosFiltrados = editIdNivel
+    ? establecimientos.filter(e =>
+        e.activo &&
+        e.establecimiento_nivel?.some(en => en.id_nivel === parseInt(editIdNivel))
+      )
+    : []
   const inputStyle = { padding: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
   const labelStyle = { fontSize: '13px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }
   const fieldStyle = { marginBottom: '12px' }
@@ -376,7 +379,14 @@ export default function Lectores() {
             <>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Nivel educativo</label>
-                <select style={inputStyle} value={editIdNivel} onChange={e => setEditIdNivel(e.target.value)}>
+                <select
+                  style={inputStyle}
+                  value={editIdNivel}
+                  onChange={e => {
+                    setEditIdNivel(e.target.value)
+                    setEditIdEstablecimiento('')
+                  }}
+                >
                   <option value="">Seleccione...</option>
                   {niveles.map(n => <option key={n.id_nivel} value={n.id_nivel}>{n.nombre}</option>)}
                 </select>

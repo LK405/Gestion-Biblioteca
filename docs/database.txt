@@ -1,0 +1,124 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.categoria (
+  id_categoria integer NOT NULL DEFAULT nextval('categoria_id_categoria_seq'::regclass),
+  codigo_dewey character varying NOT NULL UNIQUE,
+  nombre character varying NOT NULL,
+  permite_prestamo_formal boolean NOT NULL DEFAULT false,
+  CONSTRAINT categoria_pkey PRIMARY KEY (id_categoria)
+);
+CREATE TABLE public.configuracionmulta (
+  id_config integer NOT NULL DEFAULT nextval('configuracionmulta_id_config_seq'::regclass),
+  singleton boolean NOT NULL DEFAULT true UNIQUE CHECK (singleton = true),
+  cargo_base_vencimiento numeric NOT NULL DEFAULT 10.00,
+  cargo_por_dia numeric NOT NULL DEFAULT 1.00,
+  cargo_daño_leve numeric NOT NULL DEFAULT 25.00,
+  cargo_daño_grave numeric NOT NULL DEFAULT 100.00,
+  actualizado_por integer,
+  actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT configuracionmulta_pkey PRIMARY KEY (id_config),
+  CONSTRAINT fk_config_usuario FOREIGN KEY (actualizado_por) REFERENCES public.usuario(id_usuario)
+);
+CREATE TABLE public.ejemplar (
+  id_ejemplar integer NOT NULL DEFAULT nextval('ejemplar_id_ejemplar_seq'::regclass),
+  id_titulo integer NOT NULL,
+  codigo_inventario character varying NOT NULL UNIQUE,
+  ubicacion_dewey character varying NOT NULL,
+  estado character varying NOT NULL DEFAULT 'DISPONIBLE'::character varying CHECK (estado::text = ANY (ARRAY['DISPONIBLE'::character varying, 'PRESTADO'::character varying, 'FUERA_DE_SERVICIO'::character varying]::text[])),
+  CONSTRAINT ejemplar_pkey PRIMARY KEY (id_ejemplar),
+  CONSTRAINT fk_ejemplar_titulo FOREIGN KEY (id_titulo) REFERENCES public.titulo(id_titulo)
+);
+CREATE TABLE public.establecimiento (
+  id_establecimiento integer NOT NULL DEFAULT nextval('establecimiento_id_establecimiento_seq'::regclass),
+  nombre character varying NOT NULL,
+  activo boolean NOT NULL DEFAULT true,
+  CONSTRAINT establecimiento_pkey PRIMARY KEY (id_establecimiento)
+);
+CREATE TABLE public.establecimiento_nivel (
+  id integer NOT NULL DEFAULT nextval('establecimiento_nivel_id_seq'::regclass),
+  id_establecimiento integer NOT NULL,
+  id_nivel integer NOT NULL,
+  CONSTRAINT establecimiento_nivel_pkey PRIMARY KEY (id),
+  CONSTRAINT establecimiento_nivel_id_establecimiento_fkey FOREIGN KEY (id_establecimiento) REFERENCES public.establecimiento(id_establecimiento),
+  CONSTRAINT establecimiento_nivel_id_nivel_fkey FOREIGN KEY (id_nivel) REFERENCES public.niveleducativo(id_nivel)
+);
+CREATE TABLE public.lector (
+  id_lector integer NOT NULL DEFAULT nextval('lector_id_lector_seq'::regclass),
+  nombre character varying NOT NULL,
+  dpi character varying,
+  telefono character varying,
+  direccion character varying,
+  es_menor boolean NOT NULL DEFAULT false,
+  nombre_tutor character varying,
+  telefono_tutor character varying,
+  dpi_tutor character varying,
+  id_nivel integer,
+  id_establecimiento integer,
+  grado_ciclo character varying,
+  registrado_en timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT lector_pkey PRIMARY KEY (id_lector),
+  CONSTRAINT fk_lector_establecimiento FOREIGN KEY (id_establecimiento) REFERENCES public.establecimiento(id_establecimiento),
+  CONSTRAINT fk_lector_nivel FOREIGN KEY (id_nivel) REFERENCES public.niveleducativo(id_nivel)
+);
+CREATE TABLE public.multa (
+  id_multa integer NOT NULL DEFAULT nextval('multa_id_multa_seq'::regclass),
+  id_prestamo integer NOT NULL UNIQUE,
+  dias_retraso integer NOT NULL DEFAULT 0,
+  cargo_base numeric NOT NULL,
+  cargo_por_dia numeric NOT NULL,
+  cargo_por_daño numeric NOT NULL DEFAULT 0.00,
+  estado_libro character varying NOT NULL CHECK (estado_libro::text = ANY (ARRAY['BUENO'::character varying, 'DAÑADO_LEVE'::character varying, 'DAÑADO_GRAVE'::character varying]::text[])),
+  monto_total numeric NOT NULL,
+  pagada boolean NOT NULL DEFAULT false,
+  generada_en timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT multa_pkey PRIMARY KEY (id_multa),
+  CONSTRAINT fk_multa_prestamo FOREIGN KEY (id_prestamo) REFERENCES public.prestamo(id_prestamo)
+);
+CREATE TABLE public.niveleducativo (
+  id_nivel integer NOT NULL DEFAULT nextval('niveleducativo_id_nivel_seq'::regclass),
+  nombre character varying NOT NULL,
+  CONSTRAINT niveleducativo_pkey PRIMARY KEY (id_nivel)
+);
+CREATE TABLE public.prestamo (
+  id_prestamo integer NOT NULL DEFAULT nextval('prestamo_id_prestamo_seq'::regclass),
+  id_ejemplar integer NOT NULL,
+  id_lector integer,
+  id_usuario_registra integer NOT NULL,
+  tipo character varying NOT NULL CHECK (tipo::text = ANY (ARRAY['FORMAL'::character varying, 'EXTERNO_INMEDIATO'::character varying]::text[])),
+  estado character varying NOT NULL DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'DEVUELTO'::character varying, 'VENCIDO'::character varying]::text[])),
+  fecha_salida date NOT NULL,
+  hora_salida time without time zone,
+  fecha_devolucion_esperada date,
+  fecha_devolucion_real date,
+  hora_regreso time without time zone,
+  nombre_inmediato character varying,
+  dpi_garantia character varying,
+  observaciones character varying,
+  CONSTRAINT prestamo_pkey PRIMARY KEY (id_prestamo),
+  CONSTRAINT fk_prestamo_ejemplar FOREIGN KEY (id_ejemplar) REFERENCES public.ejemplar(id_ejemplar),
+  CONSTRAINT fk_prestamo_lector FOREIGN KEY (id_lector) REFERENCES public.lector(id_lector),
+  CONSTRAINT fk_prestamo_usuario FOREIGN KEY (id_usuario_registra) REFERENCES public.usuario(id_usuario)
+);
+CREATE TABLE public.titulo (
+  id_titulo integer NOT NULL DEFAULT nextval('titulo_id_titulo_seq'::regclass),
+  id_categoria integer NOT NULL,
+  titulo character varying NOT NULL,
+  autor character varying NOT NULL,
+  isbn character varying UNIQUE,
+  anio_publicacion integer,
+  activo boolean NOT NULL DEFAULT true,
+  imagen_url character varying,
+  CONSTRAINT titulo_pkey PRIMARY KEY (id_titulo),
+  CONSTRAINT fk_titulo_categoria FOREIGN KEY (id_categoria) REFERENCES public.categoria(id_categoria)
+);
+CREATE TABLE public.usuario (
+  id_usuario integer NOT NULL DEFAULT nextval('usuario_id_usuario_seq'::regclass),
+  nombre character varying NOT NULL,
+  correo character varying NOT NULL UNIQUE,
+  contrasena_hash character varying NOT NULL,
+  rol character varying NOT NULL CHECK (rol::text = ANY (ARRAY['ADMINISTRADOR'::character varying, 'BIBLIOTECARIA'::character varying]::text[])),
+  activo boolean NOT NULL DEFAULT true,
+  creado_en timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT usuario_pkey PRIMARY KEY (id_usuario)
+);
