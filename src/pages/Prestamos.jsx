@@ -23,6 +23,7 @@ export default function Prestamos() {
   const [guardando, setGuardando] = useState(false)
   const [tipoAbierto, setTipoAbierto] = useState(true)
   const [pasoActivo, setPasoActivo] = useState('libro')
+  const [vistaPrestamos, setVistaPrestamos] = useState('registrar')
 
   // Búsqueda de libro
   const [busquedaLibro, setBusquedaLibro] = useState('')
@@ -75,6 +76,8 @@ export default function Prestamos() {
   const [editNombreLector, setEditNombreLector] = useState('')
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
   const [mensajeEdicion, setMensajeEdicion] = useState({ texto: '', error: false })
+  const libroPreseleccionado = location.state?.libroPreseleccionado
+  const tipoPreseleccionado = location.state?.tipoPreseleccionado
 
   useEffect(() => {
     cargarNiveles()
@@ -82,19 +85,18 @@ export default function Prestamos() {
   }, [])
 
   useEffect(() => {
-    if (location.state?.libroPreseleccionado) {
-      const libro = location.state.libroPreseleccionado
-      setBusquedaLibro(libro.titulo)
-      setLibros([libro])
+    if (libroPreseleccionado) {
+      setBusquedaLibro(libroPreseleccionado.titulo)
+      setLibros([libroPreseleccionado])
       setBusquedaLibroRealizada(true)
     }
-    if (location.state?.tipoPreseleccionado) {
-      setTipo(location.state.tipoPreseleccionado)
+    if (tipoPreseleccionado) {
+      setTipo(tipoPreseleccionado)
     }
-  }, [])
+  }, [libroPreseleccionado, tipoPreseleccionado])
 
   useEffect(() => {
-    cargarHistorialPrestamos(1, filtroEstado, filtroPeriodo)
+    cargarHistorialPrestamos(1, 'TODOS', 'mes')
   }, [])
 
   useEffect(() => {
@@ -490,19 +492,58 @@ export default function Prestamos() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
         <div>
           <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulación</p>
-          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Registrar préstamo</h1>
+          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>
+            {vistaPrestamos === 'registrar' ? 'Registrar préstamo' : 'Préstamos realizados'}
+          </h1>
           <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
-            Selecciona un ejemplar, confirma el lector y revisa el resumen antes de guardar.
+            {vistaPrestamos === 'registrar'
+              ? 'Selecciona un ejemplar, confirma el lector y revisa el resumen antes de guardar.'
+              : 'Consulta, filtra y edita los préstamos registrados sin volver al formulario.'}
           </p>
         </div>
 
+        {vistaPrestamos === 'registrar' && (
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '100%' }}>
           <span style={pasoStyle(!!ejemplarSeleccionado)}><BookOpen size={16} /> Libro</span>
           <span style={pasoStyle(lectorListo)}><User size={16} /> Lector</span>
           <span style={pasoStyle(!!ejemplarSeleccionado && lectorListo)}><Check size={16} /> Confirmar</span>
         </div>
+        )}
       </div>
 
+      <section style={{ ...panelStyle, marginBottom: '20px', padding: '8px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setVistaPrestamos('registrar')}
+            style={{
+              ...tabStyle(vistaPrestamos === 'registrar'),
+              borderBottom: 'none',
+              borderRadius: '8px',
+              background: vistaPrestamos === 'registrar' ? '#eff6ff' : 'transparent',
+            }}
+          >
+            <BookOpen size={16} /> Registrar préstamo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setVistaPrestamos('historial')
+              cargarHistorialPrestamos(paginaH, filtroEstado, filtroPeriodo)
+            }}
+            style={{
+              ...tabStyle(vistaPrestamos === 'historial'),
+              borderBottom: 'none',
+              borderRadius: '8px',
+              background: vistaPrestamos === 'historial' ? '#eff6ff' : 'transparent',
+            }}
+          >
+            <Clock size={16} /> Préstamos realizados
+          </button>
+        </div>
+      </section>
+
+      {vistaPrestamos === 'registrar' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '20px', alignItems: 'start' }}>
         <main style={{ display: 'grid', gap: '18px' }}>
           <section style={panelStyle}>
@@ -950,6 +991,7 @@ export default function Prestamos() {
       </button>
         </aside>
       </div>
+      )}
 
       {/* MODAL EDICIÓN */}
       {prestamoEditando && (
@@ -1039,7 +1081,8 @@ export default function Prestamos() {
         </div>
       )}
 
-      <section style={{ ...panelStyle, marginTop: '28px' }}>
+      {vistaPrestamos === 'historial' && (
+      <section style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap' }}>
           <div>
             <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>Consulta</p>
@@ -1149,6 +1192,7 @@ export default function Prestamos() {
           </>
         )}
       </section>
+      )}
 
     </div>
   )

@@ -1,9 +1,9 @@
- import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import BookCover from '@/components/BookCover'
 import { supabase } from '@/lib/supabase'
 
 const POR_PAGINA = 20
-const IMAGEN_PLACEHOLDER = 'https://via.placeholder.com/150x200?text=Libro'
 
 function normalizarTexto(texto) {
   return (texto || '')
@@ -17,12 +17,14 @@ export default function Catalogo() {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
   const [filtro, setFiltro] = useState('general')
+  const [vistaCatalogo, setVistaCatalogo] = useState('activos')
   const [resultados, setResultados] = useState([])
   const [cargando, setCargando] = useState(false)
   const [pagina, setPagina] = useState(1)
   const [total, setTotal] = useState(0)
+  const [imagenesRotas, setImagenesRotas] = useState({})
 
-  async function cargarTitulos(pag, termino, filtroActual) {
+  const cargarTitulos = useCallback(async (pag, termino, filtroActual, vistaActual) => {
     setCargando(true)
     const terminoNormalizado = normalizarTexto(termino)
 
@@ -42,7 +44,7 @@ export default function Catalogo() {
       setTotal(0)
     } else {
       const lista = data || []
-      const filtrados = terminoNormalizado
+      const filtradosPorTexto = terminoNormalizado
         ? lista.filter(libro => {
             const camposPorFiltro = {
               general: [
@@ -61,6 +63,15 @@ export default function Catalogo() {
               .some(campo => normalizarTexto(campo).includes(terminoNormalizado))
           })
         : lista
+      const filtrados = filtradosPorTexto.filter(libro => {
+        const ejemplares = libro.ejemplar || []
+        const tieneFueraServicio = ejemplares.some(ej => ej.estado === 'FUERA_DE_SERVICIO')
+        const todosFueraServicio = ejemplares.length > 0 && ejemplares.every(ej => ej.estado === 'FUERA_DE_SERVICIO')
+
+        if (vistaActual === 'fuera_servicio') return tieneFueraServicio
+        if (!terminoNormalizado && todosFueraServicio) return false
+        return true
+      })
 
       const desde = (pag - 1) * POR_PAGINA
       const hasta = desde + POR_PAGINA
@@ -68,39 +79,53 @@ export default function Catalogo() {
       setTotal(filtrados.length)
     }
     setCargando(false)
-  }
+  }, [])
 
   useEffect(() => {
     let activo = true
 
     async function cargarInicial() {
       await Promise.resolve()
-      if (activo) cargarTitulos(1, '', 'general')
+      if (activo) cargarTitulos(1, '', 'general', 'activos')
     }
 
     cargarInicial()
     return () => { activo = false }
-  }, [])
+  }, [cargarTitulos])
 
   function handleBuscar() {
     setPagina(1)
-    cargarTitulos(1, busqueda, filtro)
+    cargarTitulos(1, busqueda, filtro, vistaCatalogo)
   }
 
   function handleLimpiar() {
     setBusqueda('')
     setFiltro('general')
+    setVistaCatalogo('activos')
     setPagina(1)
-    cargarTitulos(1, '', 'general')
+    cargarTitulos(1, '', 'general', 'activos')
   }
 
   function handlePagina(nueva) {
     setPagina(nueva)
-    cargarTitulos(nueva, busqueda, filtro)
+    cargarTitulos(nueva, busqueda, filtro, vistaCatalogo)
+  }
+
+  function handleVistaCatalogo(nuevaVista) {
+    setVistaCatalogo(nuevaVista)
+    setPagina(1)
+    cargarTitulos(1, busqueda, filtro, nuevaVista)
   }
 
   function contarDisponibles(ejemplares) {
     return (ejemplares || []).filter(e => e.estado === 'DISPONIBLE').length
+  }
+
+  function contarEstados(ejemplares) {
+    return (ejemplares || []).reduce((acc, ejemplar) => {
+      acc[ejemplar.estado] = (acc[ejemplar.estado] || 0) + 1
+      return acc
+    }, { DISPONIBLE: 0, PRESTADO: 0, FUERA_DE_SERVICIO: 0 })
   }
 
   function ubicacionPrincipal(ejemplares) {
@@ -112,6 +137,24 @@ export default function Catalogo() {
     if (disponibles === 0) return '#dc2626'
     if (disponibles < total) return '#d97706'
     return '#16a34a'
+  }
+
+  function estadoEjemplarTexto(estado) {
+    const estados = {
+      DISPONIBLE: 'Disponible',
+      PRESTADO: 'Prestado',
+      FUERA_DE_SERVICIO: 'Fuera de servicio',
+    }
+    return estados[estado] || estado || 'Sin estado'
+  }
+
+  function colorEstadoEjemplar(estado) {
+    const colores = {
+      DISPONIBLE: '#16a34a',
+      PRESTADO: '#d97706',
+      FUERA_DE_SERVICIO: '#dc2626',
+    }
+    return colores[estado] || '#64748b'
   }
 
   const totalPaginas = Math.ceil(total / POR_PAGINA)
@@ -136,7 +179,7 @@ export default function Catalogo() {
     <div style={{ padding: '32px', maxWidth: '1100px' }}>
       <h1>Catálogo de libros</h1>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <select
           value={filtro}
           onChange={e => setFiltro(e.target.value)}
@@ -156,6 +199,32 @@ export default function Catalogo() {
         />
         <button onClick={handleBuscar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Buscar</button>
         <button onClick={handleLimpiar} style={{ padding: '8px 16px', cursor: 'pointer' }}>Limpiar</button>
+      </div>
+      <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {[
+          { id: 'activos', label: 'Catalogo activo' },
+          { id: 'fuera_servicio', label: 'Fuera de servicio' },
+        ].map(vista => {
+          const activo = vistaCatalogo === vista.id
+          return (
+            <button
+              key={vista.id}
+              onClick={() => handleVistaCatalogo(vista.id)}
+              style={{
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                background: activo ? '#2563eb' : 'transparent',
+                color: activo ? 'white' : '#475569',
+                fontSize: '13px',
+                fontWeight: 900,
+              }}
+            >
+              {vista.label}
+            </button>
+          )
+        })}
       </div>
 
       {!cargando && (
@@ -177,18 +246,26 @@ export default function Catalogo() {
         <div style={gridStyle}>
           {resultados.map(libro => {
             const disponibles = contarDisponibles(libro.ejemplar)
+            const estados = contarEstados(libro.ejemplar)
             const totalEjemplares = libro.ejemplar?.length || 0
             const color = colorDisponibilidad(disponibles, totalEjemplares)
+            const deweyCode = libro.categoria?.codigo_dewey || ubicacionPrincipal(libro.ejemplar)
+            const mostrarPortadaGenerada = !libro.imagen_url || imagenesRotas[libro.id_titulo]
 
             return (
               <div key={libro.id_titulo} style={cardStyle}>
-                {/* Imagen */}
-                <img
-                  src={libro.imagen_url || IMAGEN_PLACEHOLDER}
-                  alt={libro.titulo}
-                  style={{ width: '100%', height: '180px', objectFit: 'cover' }}
-                  onError={e => { e.target.src = IMAGEN_PLACEHOLDER }}
-                />
+                <div style={{ padding: '12px 12px 0 12px' }}>
+                  {mostrarPortadaGenerada ? (
+                    <BookCover deweyCode={deweyCode} title={libro.titulo} id={libro.id_titulo} />
+                  ) : (
+                    <img
+                      src={libro.imagen_url}
+                      alt={libro.titulo}
+                      style={{ width: '100%', aspectRatio: '3 / 4', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                      onError={() => setImagenesRotas(prev => ({ ...prev, [libro.id_titulo]: true }))}
+                    />
+                  )}
+                </div>
 
                 {/* Contenido */}
                 <div style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -209,6 +286,35 @@ export default function Catalogo() {
                   <p style={{ margin: '4px 0 0 0', fontSize: '13px', fontWeight: 'bold', color }}>
                     {disponibles}/{totalEjemplares} disponibles
                   </p>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    {estados.PRESTADO > 0 && (
+                      <span style={{ border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', borderRadius: '999px', padding: '3px 7px', fontSize: '11px', fontWeight: 800 }}>
+                        {estados.PRESTADO} prestado{estados.PRESTADO === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    {estados.FUERA_DE_SERVICIO > 0 && (
+                      <span style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: '999px', padding: '3px 7px', fontSize: '11px', fontWeight: 800 }}>
+                        {estados.FUERA_DE_SERVICIO} fuera de servicio
+                      </span>
+                    )}
+                  </div>
+                  {(libro.ejemplar || []).length > 0 && (
+                    <div style={{ display: 'grid', gap: '4px', marginTop: '8px' }}>
+                      {(libro.ejemplar || []).slice(0, 3).map(ejemplar => (
+                        <div key={ejemplar.id_ejemplar} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', color: '#64748b', fontSize: '11px' }}>
+                          <span>{ejemplar.codigo_inventario}</span>
+                          <span style={{ color: colorEstadoEjemplar(ejemplar.estado), fontWeight: 800 }}>
+                            {estadoEjemplarTexto(ejemplar.estado)}
+                          </span>
+                        </div>
+                      ))}
+                      {(libro.ejemplar || []).length > 3 && (
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>
+                          +{libro.ejemplar.length - 3} ejemplares mas
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Botones */}

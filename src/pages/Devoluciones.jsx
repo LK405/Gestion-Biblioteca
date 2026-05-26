@@ -1,10 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { jsPDF } from 'jspdf'
+import { CheckCircle2, CreditCard, FileText, RotateCcw, Search } from 'lucide-react'
 
 const POR_PAGINA = 10
 
+function normalizarTexto(texto) {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function obtenerMulta(prestamo) {
+  if (Array.isArray(prestamo?.multa)) return prestamo.multa[0] || null
+  return prestamo?.multa || null
+}
+
 export default function Devoluciones() {
+  const location = useLocation()
   const [busqueda, setBusqueda] = useState('')
   const [prestamos, setPrestamos] = useState([])
   const [cargando, setCargando] = useState(false)
@@ -14,28 +30,30 @@ export default function Devoluciones() {
   const [guardando, setGuardando] = useState(false)
   const [multaPreview, setMultaPreview] = useState(null)
   const [resumenFinal, setResumenFinal] = useState(null)
+  const [filtroTipo, setFiltroTipo] = useState('TODOS')
+  const [vistaConsulta, setVistaConsulta] = useState(location.state?.vista === 'multas' ? 'multas' : 'devoluciones')
 
   // Historial
   const [historial, setHistorial] = useState([])
   const [cargandoHistorial, setCargandoHistorial] = useState(false)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
   const [totalHistorial, setTotalHistorial] = useState(0)
+  const [filtroTipoHistorial, setFiltroTipoHistorial] = useState('TODOS')
+  const [multas, setMultas] = useState([])
+  const [cargandoMultas, setCargandoMultas] = useState(false)
+  const [filtroMultas, setFiltroMultas] = useState('TODAS')
 
-  useEffect(() => {
-    cargarHistorial(1)
-  }, [])
-
-  async function cargarHistorial(pag) {
+  const cargarHistorial = useCallback(async (pag, tipo = 'TODOS') => {
     setCargandoHistorial(true)
     const desde = (pag - 1) * POR_PAGINA
     const hasta = desde + POR_PAGINA - 1
 
-    const { data, count } = await supabase
+    let query = supabase
       .from('prestamo')
       .select(`
-        id_prestamo, fecha_devolucion_real, tipo,
-        lector (nombre),
-        ejemplar (codigo_inventario, titulo (titulo)),
+        id_prestamo, fecha_devolucion_real, tipo, nombre_inmediato, dpi_garantia,
+        lector (nombre, dpi, telefono),
+        ejemplar (codigo_inventario, estado, titulo (titulo)),
         multa (monto_total, estado_libro)
       `, { count: 'exact' })
       .eq('estado', 'DEVUELTO')
@@ -43,70 +61,113 @@ export default function Devoluciones() {
       .order('fecha_devolucion_real', { ascending: false })
       .range(desde, hasta)
 
+    if (tipo !== 'TODOS') query = query.eq('tipo', tipo)
+
+    const { data, count } = await query
     setHistorial(data || [])
     setTotalHistorial(count || 0)
     setCargandoHistorial(false)
-  }
+  }, [])
+
+  const cargarMultas = useCallback(async (estado = 'TODAS') => {
+    setCargandoMultas(true)
+
+    let query = supabase
+      .from('multa')
+      .select(`
+        id_multa, monto_total, estado_libro, dias_retraso, pagada, generada_en,
+        prestamo (
+          tipo, nombre_inmediato, dpi_garantia, fecha_salida, fecha_devolucion_real,
+          lector (nombre, dpi, telefono),
+          ejemplar (codigo_inventario, titulo (titulo))
+        )
+      `)
+      .order('generada_en', { ascending: false })
+      .limit(50)
+
+    if (estado === 'PENDIENTES') query = query.eq('pagada', false)
+    if (estado === 'PAGADAS') query = query.eq('pagada', true)
+
+    const { data, error } = await query
+    if (error) {
+      console.error('Error cargando multas:', error)
+      setMultas([])
+    } else {
+      setMultas(data || [])
+    }
+    setCargandoMultas(false)
+  }, [])
+
+  useEffect(() => {
+    let activo = true
+
+    async function cargarInicial() {
+      await Promise.resolve()
+      if (activo) {
+        cargarHistorial(1, 'TODOS')
+        cargarMultas('TODAS')
+      }
+    }
+
+    cargarInicial()
+    return () => { activo = false }
+  }, [cargarHistorial, cargarMultas])
 
   function handlePaginaHistorial(nueva) {
     setPaginaHistorial(nueva)
-    cargarHistorial(nueva)
+    cargarHistorial(nueva, filtroTipoHistorial)
   }
 
-  async function buscarPrestamos() {
-  if (!busqueda.trim()) return
+async function buscarPrestamos() {
+  const termino = normalizarTexto(busqueda)
+  if (!termino) return
   setCargando(true)
   setSeleccionado(null)
   setMultaPreview(null)
   setResumenFinal(null)
 
-  // Buscar por nombre_inmediato
-  const { data: inmediatos } = await supabase
+  const { data, error } = await supabase
     .from('prestamo')
     .select(`
       id_prestamo, tipo, estado, fecha_salida,
-      fecha_devolucion_esperada, hora_salida, nombre_inmediato,
-      lector (id_lector, nombre, dpi, telefono),
-      ejemplar (id_ejemplar, codigo_inventario, titulo (titulo))
+      fecha_devolucion_esperada, hora_salida, nombre_inmediato, dpi_garantia,
+      lector (id_lector, nombre, dpi, telefono, direccion, es_menor, nombre_tutor, telefono_tutor),
+      ejemplar (id_ejemplar, codigo_inventario, titulo (titulo, autor))
     `)
     .eq('estado', 'ACTIVO')
-    .ilike('nombre_inmediato', `%${busqueda}%`)
 
-  // Buscar lectores por nombre y luego sus préstamos
-  const { data: lectoresEncontrados } = await supabase
-    .from('lector')
-    .select('id_lector')
-    .ilike('nombre', `%${busqueda}%`)
-
-  let formales = []
-  if (lectoresEncontrados && lectoresEncontrados.length > 0) {
-    const ids = lectoresEncontrados.map(l => l.id_lector)
-    const { data } = await supabase
-      .from('prestamo')
-      .select(`
-        id_prestamo, tipo, estado, fecha_salida,
-        fecha_devolucion_esperada, hora_salida, nombre_inmediato,
-        lector (id_lector, nombre, dpi, telefono),
-        ejemplar (id_ejemplar, codigo_inventario, titulo (titulo))
-      `)
-      .eq('estado', 'ACTIVO')
-      .in('id_lector', ids)
-    formales = data || []
+  if (error) {
+    console.error('Error buscando préstamos:', error)
+    setPrestamos([])
+    setCargando(false)
+    return
   }
 
-  // Combinar y deduplicar
-  const todos = [...(inmediatos || []), ...formales]
-  const unicos = todos.filter((p, i, arr) => arr.findIndex(x => x.id_prestamo === p.id_prestamo) === i)
-  setPrestamos(unicos)
+  const filtrados = (data || []).filter(p => {
+    const campos = [
+      p.lector?.nombre,
+      p.lector?.dpi,
+      p.lector?.telefono,
+      p.nombre_inmediato,
+      p.dpi_garantia,
+      p.ejemplar?.titulo?.titulo,
+      p.ejemplar?.titulo?.autor,
+      p.ejemplar?.codigo_inventario,
+    ]
+    return campos.some(campo => normalizarTexto(campo).includes(termino))
+  })
+
+  setPrestamos(filtrados)
   setCargando(false)
 }
 
-  async function calcularMulta(prestamo, estadoL) {
-    if (prestamo.tipo !== 'FORMAL') {
-      setMultaPreview(null)
-      return
-    }
+  function filtrarPorTipo(lista, tipo) {
+    if (tipo === 'FORMAL') return lista.filter(p => p.tipo === 'FORMAL')
+    if (tipo === 'EXTERNO_INMEDIATO') return lista.filter(p => p.tipo === 'EXTERNO_INMEDIATO')
+    return lista
+  }
 
+  async function calcularMulta(prestamo, estadoL) {
     const { data: config } = await supabase
       .from('configuracionmulta')
       .select('*')
@@ -117,7 +178,9 @@ export default function Devoluciones() {
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
     const limite = new Date(prestamo.fecha_devolucion_esperada)
-    const dias = Math.max(0, Math.floor((hoy - limite) / (1000 * 60 * 60 * 24)))
+    const dias = prestamo.tipo === 'FORMAL'
+      ? Math.max(0, Math.floor((hoy - limite) / (1000 * 60 * 60 * 24)))
+      : 0
 
     const cargoRetraso = dias > 0 ? config.cargo_base_vencimiento : 0
     const cargoDias = dias > 0 ? dias * config.cargo_por_dia : 0
@@ -232,7 +295,7 @@ export default function Devoluciones() {
       const fechaHoy = hoy.toISOString().split('T')[0]
       const horaHoy = hoy.toTimeString().split(' ')[0]
 
-      await supabase
+      const { error: prestamoError } = await supabase
         .from('prestamo')
         .update({
           estado: 'DEVUELTO',
@@ -240,14 +303,17 @@ export default function Devoluciones() {
           hora_regreso: seleccionado.tipo === 'EXTERNO_INMEDIATO' ? horaHoy : null,
         })
         .eq('id_prestamo', seleccionado.id_prestamo)
+      if (prestamoError) throw prestamoError
 
-      await supabase
+      const estadoEjemplar = estadoLibro === 'DAÑADO_GRAVE' ? 'FUERA_DE_SERVICIO' : 'DISPONIBLE'
+      const { error: ejemplarError } = await supabase
         .from('ejemplar')
-        .update({ estado: estadoLibro === 'BUENO' ? 'DISPONIBLE' : 'FUERA_DE_SERVICIO' })
+        .update({ estado: estadoEjemplar })
         .eq('id_ejemplar', seleccionado.ejemplar.id_ejemplar)
+      if (ejemplarError) throw ejemplarError
 
       if (multaPreview?.tieneMulta) {
-        await supabase.from('multa').insert({
+        const { error: multaError } = await supabase.from('multa').upsert({
           id_prestamo: seleccionado.id_prestamo,
           dias_retraso: multaPreview.dias,
           cargo_base: multaPreview.cargoBase,
@@ -256,7 +322,8 @@ export default function Devoluciones() {
           estado_libro: estadoLibro,
           monto_total: multaPreview.total,
           pagada: false,
-        })
+        }, { onConflict: 'id_prestamo' })
+        if (multaError) throw multaError
       }
 
       const resumen = {
@@ -278,6 +345,7 @@ export default function Devoluciones() {
       setMultaPreview(null)
       cargarHistorial(1)
       setPaginaHistorial(1)
+      cargarMultas(filtroMultas)
     } catch (err) {
       console.error(err)
       setMensaje({ texto: 'Error al registrar la devolución.', error: true })
@@ -286,263 +354,485 @@ export default function Devoluciones() {
     setGuardando(false)
   }
 
+  const prestamosFiltrados = filtrarPorTipo(prestamos, filtroTipo)
   const totalPaginasHistorial = Math.ceil(totalHistorial / POR_PAGINA)
+  const tipoTabs = [
+    { id: 'TODOS', label: 'Todas' },
+    { id: 'FORMAL', label: 'Formales' },
+    { id: 'EXTERNO_INMEDIATO', label: 'Inmediatas' },
+  ]
+  const panelStyle = { border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', padding: '18px' }
+  const inputStyle = {
+    width: '100%',
+    boxSizing: 'border-box',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    padding: '11px 12px',
+    fontSize: '14px',
+    background: 'white',
+    color: '#0f172a',
+  }
+  const buttonSecondary = {
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    background: 'white',
+    color: '#0f172a',
+    padding: '10px 14px',
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '7px',
+  }
+  const buttonPrimary = {
+    ...buttonSecondary,
+    border: 'none',
+    background: '#2563eb',
+    color: 'white',
+  }
+  const tabStyle = activo => ({
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+    background: activo ? '#2563eb' : 'transparent',
+    color: activo ? 'white' : '#475569',
+    fontSize: '13px',
+    fontWeight: 900,
+  })
 
   return (
-    <div style={{ padding: '32px', maxWidth: '900px' }}>
-      <h1>Registro de devoluciones</h1>
+    <div style={{ padding: '32px', maxWidth: '1180px', background: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap' }}>
+        <div>
+          <p style={{ margin: '0 0 6px 0', color: '#2563eb', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase' }}>Circulacion</p>
+          <h1 style={{ margin: 0, fontSize: '30px', color: '#0f172a' }}>Devoluciones</h1>
+          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+            Busca prestamos activos, revisa el usuario y confirma el estado del libro.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            cargarHistorial(paginaHistorial, filtroTipoHistorial)
+            cargarMultas(filtroMultas)
+          }}
+          style={buttonSecondary}
+        >
+          <RotateCcw size={16} /> Actualizar
+        </button>
+      </div>
 
-      {resumenFinal ? (
-        <div style={{ border: '1px solid #86efac', borderRadius: '6px', padding: '24px', background: '#f0fdf4', marginBottom: '32px' }}>
-          <h2 style={{ color: '#16a34a', margin: '0 0 16px 0' }}>✓ Devolución registrada</h2>
-
-          <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Lector</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>{resumenFinal.lector?.nombre}</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>DPI: {resumenFinal.lector?.dpi || '—'}</p>
-          <p style={{ margin: '2px 0 12px 0', fontSize: '14px' }}>Tel: {resumenFinal.lector?.telefono || '—'}</p>
-
-          <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Libro devuelto</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>{resumenFinal.libro}</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>Código: {resumenFinal.codigoEjemplar}</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>Salida: {resumenFinal.fechaSalida}</p>
-          <p style={{ margin: '2px 0', fontSize: '14px' }}>Límite: {resumenFinal.fechaLimite}</p>
-          <p style={{ margin: '2px 0 12px 0', fontSize: '14px' }}>Devuelto: {resumenFinal.fechaDevolucion}</p>
-
-          <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Estado del libro</p>
-          <p style={{ margin: '2px 0 12px 0', fontSize: '14px' }}>{resumenFinal.estadoLibro}</p>
-
-          <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Multa</p>
-          {resumenFinal.multa.tieneMulta ? (
-            <div style={{ fontSize: '14px' }}>
-              {resumenFinal.multa.cargoBase > 0 &&
-                <p style={{ margin: '2px 0' }}>Cargo base: Q{resumenFinal.multa.cargoBase.toFixed(2)}</p>}
-              {resumenFinal.multa.totalDias > 0 &&
-                <p style={{ margin: '2px 0' }}>
-                  {resumenFinal.multa.dias} día(s) × Q{resumenFinal.multa.cargoPorDia.toFixed(2)} = Q{resumenFinal.multa.totalDias.toFixed(2)}
-                </p>}
-              {resumenFinal.multa.cargoDano > 0 &&
-                <p style={{ margin: '2px 0' }}>Daño ({resumenFinal.estadoLibro}): Q{resumenFinal.multa.cargoDano.toFixed(2)}</p>}
-              <p style={{ margin: '8px 0 0 0', fontWeight: 'bold', fontSize: '15px' }}>
-                Total: Q{resumenFinal.multa.total.toFixed(2)}
+      {resumenFinal && (
+        <section style={{ ...panelStyle, borderColor: '#bbf7d0', background: '#f0fdf4', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '14px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#dcfce7', color: '#16a34a', display: 'grid', placeItems: 'center' }}>
+              <CheckCircle2 size={20} />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, color: '#166534', fontSize: '20px' }}>Devolucion registrada</h2>
+              <p style={{ margin: '4px 0 0 0', color: '#166534', fontSize: '13px' }}>
+                {resumenFinal.lector?.nombre} devolvio {resumenFinal.libro}.
               </p>
             </div>
-          ) : (
-            <p style={{ margin: '2px 0', fontSize: '14px' }}>Sin multa — Q0.00</p>
-          )}
+          </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-            {resumenFinal.tipo === 'FORMAL' && (
-              <button
-                onClick={() => generarPDF(resumenFinal)}
-                style={{ padding: '10px 20px', cursor: 'pointer', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '4px' }}
-              >
-                Descargar comprobante PDF
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+            {[
+              ['Lector', resumenFinal.lector?.nombre || '-'],
+              ['Libro', resumenFinal.libro || '-'],
+              ['Codigo', resumenFinal.codigoEjemplar || '-'],
+              ['Estado libro', resumenFinal.estadoLibro],
+              ['Fecha devolucion', resumenFinal.fechaDevolucion],
+              ['Multa', `Q${resumenFinal.multa.total.toFixed(2)}`],
+            ].map(([label, value]) => (
+              <div key={label} style={{ border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', background: 'white' }}>
+                <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>{label}</p>
+                <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {resumenFinal.multa.tieneMulta && (
+              <button onClick={() => generarPDF(resumenFinal)} style={buttonPrimary}>
+                <FileText size={15} /> Descargar comprobante PDF
               </button>
             )}
-            <button
-              onClick={() => { setResumenFinal(null); setBusqueda(''); setPrestamos([]) }}
-              style={{ padding: '10px 20px', cursor: 'pointer' }}
-            >
-              Nueva devolución
+            <button onClick={() => { setResumenFinal(null); setBusqueda(''); setPrestamos([]) }} style={buttonSecondary}>
+              Nueva devolucion
             </button>
           </div>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-            <input
-              type="text"
-              placeholder="Buscar por nombre del lector..."
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && buscarPrestamos()}
-              style={{ padding: '8px', fontSize: '14px', flex: 1 }}
-            />
-            <button onClick={buscarPrestamos} style={{ padding: '8px 16px', cursor: 'pointer' }}>
-              Buscar
-            </button>
+        </section>
+      )}
+
+      {!resumenFinal && (
+        <section style={{ ...panelStyle, marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Buscar prestamo</h2>
+              <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                Busca por lector, visitante inmediato, DPI, telefono, titulo, autor o codigo de ejemplar.
+              </p>
+            </div>
+            <span style={{ borderRadius: '999px', padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', fontSize: '13px', fontWeight: 800 }}>
+              {prestamosFiltrados.length}
+            </span>
           </div>
 
-          {cargando && <p>Buscando...</p>}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+              {tipoTabs.map(tab => (
+                <button key={tab.id} onClick={() => setFiltroTipo(tab.id)} style={tabStyle(filtroTipo === tab.id)}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
+              <input
+                type="text"
+                placeholder="Buscar prestamo..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && buscarPrestamos()}
+                style={inputStyle}
+              />
+              <button onClick={buscarPrestamos} style={buttonPrimary}>
+                <Search size={15} /> Buscar
+              </button>
+            </div>
+          </div>
 
-          {prestamos.length > 0 && !seleccionado && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', marginBottom: '24px' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
-                  <th style={{ padding: '8px' }}>Lector</th>
-                  <th style={{ padding: '8px' }}>Libro</th>
-                  <th style={{ padding: '8px' }}>Tipo</th>
-                  <th style={{ padding: '8px' }}>Fecha límite</th>
-                  <th style={{ padding: '8px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {prestamos.map(p => (
-                  <tr key={p.id_prestamo} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '8px' }}>{p.lector?.nombre || p.nombre_inmediato}</td>
-                    <td style={{ padding: '8px' }}>{p.ejemplar?.titulo?.titulo}</td>
-                    <td style={{ padding: '8px' }}>{p.tipo}</td>
-                    <td style={{ padding: '8px' }}>{p.fecha_devolucion_esperada || '—'}</td>
-                    <td style={{ padding: '8px' }}>
-                      <button onClick={() => seleccionarPrestamo(p)} style={{ cursor: 'pointer', padding: '4px 10px' }}>
-                        Seleccionar
-                      </button>
-                    </td>
+          {cargando && <p style={{ margin: 0, color: '#64748b' }}>Buscando prestamos...</p>}
+
+          {!cargando && busqueda.trim() && prestamos.length === 0 && (
+            <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '18px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+              No se encontraron prestamos con esa busqueda.
+            </div>
+          )}
+
+          {!cargando && prestamos.length > 0 && !seleccionado && (
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '880px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                    <th style={{ padding: '12px' }}>Usuario</th>
+                    <th style={{ padding: '12px' }}>Libro</th>
+                    <th style={{ padding: '12px' }}>Tipo</th>
+                    <th style={{ padding: '12px' }}>Fecha limite</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {prestamosFiltrados.map(p => (
+                    <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
+                      <td style={{ padding: '12px', color: '#334155' }}>
+                        <strong>{p.ejemplar?.titulo?.titulo}</strong>
+                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          borderRadius: '999px',
+                          padding: '5px 9px',
+                          background: p.tipo === 'FORMAL' ? '#ecfdf5' : '#dbeafe',
+                          color: p.tipo === 'FORMAL' ? '#047857' : '#1d4ed8',
+                          fontSize: '12px',
+                          fontWeight: 900,
+                        }}>
+                          {p.tipo === 'FORMAL' ? 'Formal' : 'Inmediata'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#475569' }}>{p.fecha_devolucion_esperada || '-'}</td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                          <button onClick={() => seleccionarPrestamo(p)} style={buttonPrimary}>
+                            Seleccionar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!cargando && prestamos.length > 0 && prestamosFiltrados.length === 0 && !seleccionado && (
+            <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '18px', textAlign: 'center', color: '#64748b', background: '#f8fafc', marginTop: '12px' }}>
+              No hay prestamos en esta categoria.
+            </div>
           )}
 
           {seleccionado && (
-            <div style={{ border: '1px solid #ddd', borderRadius: '6px', padding: '20px', marginBottom: '24px' }}>
-              <h3>Confirmar devolución</h3>
-              <p><strong>Lector:</strong> {seleccionado.lector?.nombre || seleccionado.nombre_inmediato}</p>
-              <p><strong>Libro:</strong> {seleccionado.ejemplar?.titulo?.titulo}</p>
-              <p><strong>Código:</strong> {seleccionado.ejemplar?.codigo_inventario}</p>
-              <p><strong>Fecha salida:</strong> {seleccionado.fecha_salida}</p>
-              {seleccionado.fecha_devolucion_esperada &&
-                <p><strong>Fecha límite:</strong> {seleccionado.fecha_devolucion_esperada}</p>}
-
-              <div style={{ marginTop: '16px', marginBottom: '16px' }}>
-                <label style={{ fontWeight: 'bold', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                  Estado del libro al devolver
-                </label>
-                <select
-                  value={estadoLibro}
-                  onChange={e => handleEstadoLibro(e.target.value)}
-                  style={{ padding: '8px', fontSize: '14px' }}
-                >
-                  <option value="BUENO">Bueno</option>
-                  <option value="DAÑADO_LEVE">Dañado leve</option>
-                  <option value="DAÑADO_GRAVE">Dañado grave</option>
-                </select>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', background: '#f8fafc', marginTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#0f172a', fontSize: '20px' }}>Confirmar devolucion</h3>
+                  <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                    {seleccionado.ejemplar?.titulo?.titulo} · {seleccionado.ejemplar?.codigo_inventario}
+                  </p>
+                </div>
               </div>
 
-              {multaPreview && seleccionado.tipo === 'FORMAL' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
+                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Usuario</p>
+                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.lector?.nombre || seleccionado.nombre_inmediato}</p>
+                </div>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
+                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Salida</p>
+                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.fecha_salida}</p>
+                </div>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: 'white' }}>
+                  <p style={{ margin: '0 0 4px 0', color: '#64748b', fontSize: '12px', fontWeight: 800 }}>Limite</p>
+                  <p style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>{seleccionado.fecha_devolucion_esperada || '-'}</p>
+                </div>
+              </div>
+
+              <label style={{ display: 'block', color: '#334155', fontSize: '13px', fontWeight: 800, marginBottom: '6px' }}>
+                Estado del libro al devolver
+              </label>
+              <select value={estadoLibro} onChange={e => handleEstadoLibro(e.target.value)} style={{ ...inputStyle, maxWidth: '260px', marginBottom: '14px' }}>
+                <option value="BUENO">Bueno</option>
+                <option value="DAÑADO_LEVE">Dañado leve</option>
+                <option value="DAÑADO_GRAVE">Dañado grave</option>
+              </select>
+
+              {multaPreview && (
                 <div style={{
-                  border: `1px solid ${multaPreview.tieneMulta ? '#fca5a5' : '#86efac'}`,
+                  border: `1px solid ${multaPreview.tieneMulta ? '#fecaca' : '#bbf7d0'}`,
                   background: multaPreview.tieneMulta ? '#fef2f2' : '#f0fdf4',
-                  borderRadius: '4px', padding: '14px', marginBottom: '16px'
+                  borderRadius: '8px',
+                  padding: '14px',
+                  marginBottom: '14px',
                 }}>
-                  <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '14px', color: multaPreview.tieneMulta ? '#dc2626' : '#16a34a' }}>
-                    {multaPreview.tieneMulta ? '⚠ Desglose de multa' : '✓ Sin multa'}
+                  <p style={{ margin: '0 0 10px 0', color: multaPreview.tieneMulta ? '#991b1b' : '#166534', fontWeight: 900 }}>
+                    {multaPreview.tieneMulta ? 'Desglose de multa' : 'Sin multa'}
                   </p>
-                  {multaPreview.tieneMulta && (
-                    <div style={{ fontSize: '13px' }}>
-                      {multaPreview.cargoBase > 0 && (
-                        <p style={{ margin: '3px 0' }}>
-                          Cargo base por vencimiento: <strong>Q{multaPreview.cargoBase.toFixed(2)}</strong>
-                        </p>
-                      )}
-                      {multaPreview.dias > 0 && (
-                        <p style={{ margin: '3px 0' }}>
-                          {multaPreview.dias} día(s) × Q{multaPreview.cargoPorDia.toFixed(2)} por día: <strong>Q{multaPreview.totalDias.toFixed(2)}</strong>
-                        </p>
-                      )}
-                      {multaPreview.cargoDano > 0 && (
-                        <p style={{ margin: '3px 0' }}>
-                          Cargo por daño ({estadoLibro}): <strong>Q{multaPreview.cargoDano.toFixed(2)}</strong>
-                        </p>
-                      )}
-                      <p style={{ margin: '8px 0 0 0', fontWeight: 'bold', fontSize: '14px', borderTop: '1px solid #fca5a5', paddingTop: '6px' }}>
-                        Total: Q{multaPreview.total.toFixed(2)}
-                      </p>
-                    </div>
-                  )}
+                  <div style={{ display: 'grid', gap: '6px', color: '#334155', fontSize: '14px' }}>
+                    <span>Dias de retraso: <strong>{multaPreview.dias}</strong></span>
+                    <span>Cargo base: <strong>Q{multaPreview.cargoBase.toFixed(2)}</strong></span>
+                    <span>Cargo por dias: <strong>Q{multaPreview.totalDias.toFixed(2)}</strong></span>
+                    <span>Cargo por dano: <strong>Q{multaPreview.cargoDano.toFixed(2)}</strong></span>
+                    <span style={{ fontSize: '16px', color: multaPreview.tieneMulta ? '#991b1b' : '#166534', fontWeight: 900 }}>
+                      Total: Q{multaPreview.total.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               )}
 
               {mensaje.texto && (
-                <p style={{ color: mensaje.error ? '#dc2626' : '#16a34a', fontWeight: 'bold', marginBottom: '12px' }}>
+                <p style={{
+                  color: mensaje.error ? '#991b1b' : '#166534',
+                  background: mensaje.error ? '#fee2e2' : '#dcfce7',
+                  border: `1px solid ${mensaje.error ? '#fecaca' : '#bbf7d0'}`,
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                }}>
                   {mensaje.texto}
                 </p>
               )}
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={registrarDevolucion}
-                  disabled={guardando}
-                  style={{ padding: '10px 24px', cursor: 'pointer' }}
-                >
-                  {guardando ? 'Guardando...' : 'Confirmar devolución'}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button onClick={registrarDevolucion} disabled={guardando} style={{ ...buttonPrimary, opacity: guardando ? 0.65 : 1 }}>
+                  <CheckCircle2 size={15} /> {guardando ? 'Guardando...' : 'Confirmar devolucion'}
                 </button>
-                <button
-                  onClick={() => { setSeleccionado(null); setMultaPreview(null) }}
-                  style={{ padding: '10px 16px', cursor: 'pointer' }}
-                >
+                <button onClick={() => { setSeleccionado(null); setMultaPreview(null) }} style={buttonSecondary}>
                   Cancelar
                 </button>
               </div>
             </div>
           )}
-        </>
+        </section>
       )}
 
-      {/* Historial de devoluciones */}
-      <div style={{ marginTop: '40px', borderTop: '2px solid #e2e8f0', paddingTop: '24px' }}>
-        <h2 style={{ marginBottom: '16px' }}>Historial de devoluciones</h2>
+      <section style={panelStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>
+              {vistaConsulta === 'multas' ? 'Multas generadas' : 'Historial de devoluciones'}
+            </h2>
+            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+              {vistaConsulta === 'multas'
+                ? 'Consulta las multas registradas por retraso o dano.'
+                : 'Consulta devoluciones registradas por categoria.'}
+            </p>
+          </div>
+          <span style={{ borderRadius: '999px', padding: '6px 10px', background: '#eff6ff', color: '#1d4ed8', fontSize: '13px', fontWeight: 800 }}>
+            {vistaConsulta === 'multas' ? multas.length : totalHistorial}
+          </span>
+        </div>
 
-        {cargandoHistorial && <p>Cargando historial...</p>}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+            {[
+              { id: 'devoluciones', label: 'Devoluciones' },
+              { id: 'multas', label: 'Multas' },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setVistaConsulta(tab.id)} style={tabStyle(vistaConsulta === tab.id)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-        {!cargandoHistorial && historial.length === 0 && (
-          <p style={{ color: '#666' }}>Sin devoluciones registradas.</p>
+          {vistaConsulta === 'devoluciones' && (
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+            {tipoTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setFiltroTipoHistorial(tab.id)
+                setPaginaHistorial(1)
+                cargarHistorial(1, tab.id)
+              }}
+              style={tabStyle(filtroTipoHistorial === tab.id)}
+            >
+              {tab.label}
+            </button>
+            ))}
+          </div>
+          )}
+
+          {vistaConsulta === 'multas' && (
+          <div style={{ display: 'inline-flex', gap: '4px', padding: '4px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', flexWrap: 'wrap' }}>
+            {[
+              { id: 'TODAS', label: 'Todas' },
+              { id: 'PENDIENTES', label: 'Pendientes' },
+              { id: 'PAGADAS', label: 'Pagadas' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setFiltroMultas(tab.id)
+                  cargarMultas(tab.id)
+                }}
+                style={tabStyle(filtroMultas === tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          )}
+        </div>
+
+        {vistaConsulta === 'devoluciones' && cargandoHistorial && <p style={{ margin: 0, color: '#64748b' }}>Cargando historial...</p>}
+
+        {vistaConsulta === 'devoluciones' && !cargandoHistorial && historial.length === 0 && (
+          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+            Sin devoluciones registradas.
+          </div>
         )}
 
-        {!cargandoHistorial && historial.length > 0 && (
+        {vistaConsulta === 'devoluciones' && !cargandoHistorial && historial.length > 0 && (
           <>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
-              {totalHistorial} devoluciones registradas
-            </p>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ccc', textAlign: 'left' }}>
-                  <th style={{ padding: '8px' }}>Lector</th>
-                  <th style={{ padding: '8px' }}>Libro</th>
-                  <th style={{ padding: '8px' }}>Fecha devolución</th>
-                  <th style={{ padding: '8px' }}>Estado libro</th>
-                  <th style={{ padding: '8px' }}>Multa</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historial.map(p => (
-                  <tr key={p.id_prestamo} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '8px' }}>{p.lector?.nombre || '—'}</td>
-                    <td style={{ padding: '8px' }}>{p.ejemplar?.titulo?.titulo}</td>
-                    <td style={{ padding: '8px' }}>{p.fecha_devolucion_real}</td>
-                    <td style={{ padding: '8px' }}>{p.multa?.[0]?.estado_libro || 'BUENO'}</td>
-                    <td style={{ padding: '8px', color: p.multa?.[0]?.monto_total > 0 ? '#dc2626' : '#16a34a', fontWeight: 'bold' }}>
-                      Q{p.multa?.[0]?.monto_total ? Number(p.multa[0].monto_total).toFixed(2) : '0.00'}
-                    </td>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '860px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                    <th style={{ padding: '12px' }}>Usuario</th>
+                    <th style={{ padding: '12px' }}>Libro</th>
+                    <th style={{ padding: '12px' }}>Tipo</th>
+                    <th style={{ padding: '12px' }}>Fecha devolucion</th>
+                    <th style={{ padding: '12px' }}>Estado libro</th>
+                    <th style={{ padding: '12px' }}>Multa</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {historial.map(p => {
+                    const multa = obtenerMulta(p)
+                    const estadoMostrado = multa?.estado_libro || (p.ejemplar?.estado === 'FUERA_DE_SERVICIO' ? 'FUERA_DE_SERVICIO' : 'BUENO')
+                    return (
+                      <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>{p.lector?.nombre || p.nombre_inmediato || '-'}</td>
+                        <td style={{ padding: '12px', color: '#334155' }}>{p.ejemplar?.titulo?.titulo}</td>
+                        <td style={{ padding: '12px', color: '#475569' }}>{p.tipo === 'FORMAL' ? 'Formal' : 'Inmediata'}</td>
+                        <td style={{ padding: '12px', color: '#475569' }}>{p.fecha_devolucion_real}</td>
+                        <td style={{ padding: '12px', color: '#475569' }}>{estadoMostrado}</td>
+                        <td style={{ padding: '12px', color: multa?.monto_total > 0 ? '#dc2626' : '#16a34a', fontWeight: 900 }}>
+                          Q{multa?.monto_total ? Number(multa.monto_total).toFixed(2) : '0.00'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {totalPaginasHistorial > 1 && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
-                <button
-                  onClick={() => handlePaginaHistorial(paginaHistorial - 1)}
-                  disabled={paginaHistorial === 1}
-                  style={{ padding: '6px 14px', cursor: paginaHistorial === 1 ? 'default' : 'pointer' }}
-                >
-                  ← Anterior
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button onClick={() => handlePaginaHistorial(paginaHistorial - 1)} disabled={paginaHistorial === 1} style={{ ...buttonSecondary, opacity: paginaHistorial === 1 ? 0.55 : 1 }}>
+                  Anterior
                 </button>
-                <span style={{ fontSize: '14px' }}>
-                  Página {paginaHistorial} de {totalPaginasHistorial}
-                </span>
-                <button
-                  onClick={() => handlePaginaHistorial(paginaHistorial + 1)}
-                  disabled={paginaHistorial === totalPaginasHistorial}
-                  style={{ padding: '6px 14px', cursor: paginaHistorial === totalPaginasHistorial ? 'default' : 'pointer' }}
-                >
-                  Siguiente →
+                <span style={{ fontSize: '14px', color: '#475569' }}>Pagina {paginaHistorial} de {totalPaginasHistorial}</span>
+                <button onClick={() => handlePaginaHistorial(paginaHistorial + 1)} disabled={paginaHistorial === totalPaginasHistorial} style={{ ...buttonSecondary, opacity: paginaHistorial === totalPaginasHistorial ? 0.55 : 1 }}>
+                  Siguiente
                 </button>
               </div>
             )}
           </>
         )}
-      </div>
+
+        {vistaConsulta === 'multas' && cargandoMultas && <p style={{ margin: 0, color: '#64748b' }}>Cargando multas...</p>}
+
+        {vistaConsulta === 'multas' && !cargandoMultas && multas.length === 0 && (
+          <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
+            Sin multas registradas.
+          </div>
+        )}
+
+        {vistaConsulta === 'multas' && !cargandoMultas && multas.length > 0 && (
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
+                  <th style={{ padding: '12px' }}>Usuario</th>
+                  <th style={{ padding: '12px' }}>Libro</th>
+                  <th style={{ padding: '12px' }}>Tipo</th>
+                  <th style={{ padding: '12px' }}>Estado libro</th>
+                  <th style={{ padding: '12px' }}>Retraso</th>
+                  <th style={{ padding: '12px' }}>Monto</th>
+                  <th style={{ padding: '12px' }}>Estado pago</th>
+                </tr>
+              </thead>
+              <tbody>
+                {multas.map(multa => (
+                  <tr key={multa.id_multa} style={{ borderTop: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '12px', fontWeight: 800, color: '#0f172a' }}>
+                      {multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || '-'}
+                    </td>
+                    <td style={{ padding: '12px', color: '#334155' }}>
+                      {multa.prestamo?.ejemplar?.titulo?.titulo || '-'}
+                      <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{multa.prestamo?.ejemplar?.codigo_inventario || '-'}</div>
+                    </td>
+                    <td style={{ padding: '12px', color: '#475569' }}>{multa.prestamo?.tipo === 'FORMAL' ? 'Formal' : 'Inmediata'}</td>
+                    <td style={{ padding: '12px', color: '#475569' }}>{multa.estado_libro || '-'}</td>
+                    <td style={{ padding: '12px', color: '#475569' }}>{multa.dias_retraso || 0} dias</td>
+                    <td style={{ padding: '12px', color: '#dc2626', fontWeight: 900 }}>Q{Number(multa.monto_total || 0).toFixed(2)}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        borderRadius: '999px',
+                        padding: '5px 9px',
+                        background: multa.pagada ? '#dcfce7' : '#fef3c7',
+                        color: multa.pagada ? '#166534' : '#92400e',
+                        fontSize: '12px',
+                        fontWeight: 900,
+                      }}>
+                        {multa.pagada ? 'Pagada' : 'Pendiente'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

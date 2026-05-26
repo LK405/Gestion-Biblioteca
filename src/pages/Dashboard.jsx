@@ -2,15 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import {
-  AlertTriangle,
   BarChart3,
   BookOpen,
   CheckCircle2,
   CreditCard,
-  Eye,
   FileText,
   RotateCcw,
-  User,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -22,13 +19,14 @@ export default function Dashboard() {
   const { usuario, rol } = useAuth()
   const [porVencer, setPorVencer] = useState([])
   const [vencidos, setVencidos] = useState([])
+  const [inmediatos, setInmediatos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [configMulta, setConfigMulta] = useState(null)
-  const [lectorDetalle, setLectorDetalle] = useState(null)
   const [devolucionPendiente, setDevolucionPendiente] = useState(null)
   const [estadoLibroDevolucion, setEstadoLibroDevolucion] = useState('BUENO')
   const [mensaje, setMensaje] = useState({ texto: '', error: false })
   const [procesandoId, setProcesandoId] = useState(null)
+  const [filtroPrestamos, setFiltroPrestamos] = useState('todos')
 
   const [actividad, setActividad] = useState(null)
   const [periodoActividad, setPeriodoActividad] = useState('semana')
@@ -53,13 +51,13 @@ export default function Dashboard() {
       .from('prestamo')
       .select(`
         id_prestamo, id_ejemplar, fecha_salida, fecha_devolucion_esperada, estado, tipo,
+        nombre_inmediato, dpi_garantia, hora_salida,
         lector (
           id_lector, nombre, dpi, telefono, direccion, es_menor,
           nombre_tutor, telefono_tutor, dpi_tutor, grado_ciclo
         ),
         ejemplar (id_ejemplar, codigo_inventario, ubicacion_dewey, titulo (titulo, autor))
       `)
-      .eq('tipo', 'FORMAL')
       .in('estado', ['ACTIVO', 'VENCIDO'])
       .order('fecha_devolucion_esperada', { ascending: true })
 
@@ -70,19 +68,27 @@ export default function Dashboard() {
       return
     }
 
-    const porVencerFiltro = (data || []).filter(p =>
+    const prestamos = data || []
+    const prestamosFormales = prestamos.filter(p => p.tipo === 'FORMAL')
+
+    const porVencerFiltro = prestamosFormales.filter(p =>
       p.estado === 'ACTIVO' &&
       p.fecha_devolucion_esperada >= hoyStr &&
       p.fecha_devolucion_esperada <= limiteStr
     )
 
-    const vencidosFiltro = (data || []).filter(p =>
+    const vencidosFiltro = prestamosFormales.filter(p =>
       p.estado === 'VENCIDO' ||
       (p.estado === 'ACTIVO' && p.fecha_devolucion_esperada < hoyStr)
     )
 
+    const inmediatosFiltro = prestamos.filter(p =>
+      p.tipo === 'EXTERNO_INMEDIATO' && p.estado === 'ACTIVO'
+    )
+
     setPorVencer(porVencerFiltro)
     setVencidos(vencidosFiltro)
+    setInmediatos(inmediatosFiltro)
     setCargando(false)
   }
 
@@ -99,23 +105,17 @@ export default function Dashboard() {
     }
     const desdeStr = fechaDesde.toISOString().split('T')[0]
 
-    const [{ count: prestamosCount }, { count: devolucionesCount }, { count: multasCount }, { data: conDisponibles }] =
+    const [{ count: prestamosCount }, { count: devolucionesCount }, { count: multasCount }] =
       await Promise.all([
         supabase.from('prestamo').select('*', { count: 'exact', head: true }).gte('fecha_salida', desdeStr),
         supabase.from('prestamo').select('*', { count: 'exact', head: true }).eq('estado', 'DEVUELTO').gte('fecha_devolucion_real', desdeStr),
         supabase.from('multa').select('*', { count: 'exact', head: true }).gte('generada_en', desdeStr + 'T00:00:00'),
-        supabase.from('titulo').select('id_titulo, ejemplar!inner(estado)').eq('activo', true).eq('ejemplar.estado', 'DISPONIBLE'),
       ])
-
-    const { data: todosLosTitulos } = await supabase.from('titulo').select('id_titulo').eq('activo', true)
-    const idsConDisponibles = new Set((conDisponibles || []).map(t => t.id_titulo))
-    const sinDisponibles = (todosLosTitulos || []).filter(t => !idsConDisponibles.has(t.id_titulo)).length
 
     setActividad({
       prestamos: prestamosCount || 0,
       devoluciones: devolucionesCount || 0,
       multas: multasCount || 0,
-      sinDisponibles,
     })
     setCargandoActividad(false)
   }
@@ -141,10 +141,13 @@ export default function Dashboard() {
   }
 
   function calcularMulta(prestamo, estadoLibro = 'BUENO') {
+    const diasPrestamo = prestamo.tipo === 'FORMAL'
+      ? diasRetraso(prestamo.fecha_devolucion_esperada)
+      : 0
     if (!configMulta) {
-      return { dias: diasRetraso(prestamo.fecha_devolucion_esperada), cargoBase: 0, cargoPorDia: 0, totalDias: 0, cargoDano: 0, total: 0, tieneMulta: false }
+      return { dias: diasPrestamo, cargoBase: 0, cargoPorDia: 0, totalDias: 0, cargoDano: 0, total: 0, tieneMulta: false }
     }
-    const dias = diasRetraso(prestamo.fecha_devolucion_esperada)
+    const dias = diasPrestamo
     const cargoBase = dias > 0 ? Number(configMulta.cargo_base_vencimiento) : 0
     const cargoPorDia = Number(configMulta.cargo_por_dia)
     const totalDias = dias > 0 ? dias * cargoPorDia : 0
@@ -187,23 +190,28 @@ export default function Dashboard() {
     try {
       const hoy = new Date()
       const fechaHoy = hoy.toISOString().split('T')[0]
+      const horaHoy = hoy.toTimeString().split(' ')[0]
       const multa = calcularMulta(prestamo, estadoLibroDevolucion)
 
-      await supabase
+      const { error: prestamoError } = await supabase
         .from('prestamo')
         .update({
           estado: 'DEVUELTO',
           fecha_devolucion_real: fechaHoy,
+          hora_regreso: prestamo.tipo === 'EXTERNO_INMEDIATO' ? horaHoy : null,
         })
         .eq('id_prestamo', prestamo.id_prestamo)
+      if (prestamoError) throw prestamoError
 
-      await supabase
+      const estadoEjemplar = estadoLibroDevolucion === 'DAÑADO_GRAVE' ? 'FUERA_DE_SERVICIO' : 'DISPONIBLE'
+      const { error: ejemplarError } = await supabase
         .from('ejemplar')
-        .update({ estado: estadoLibroDevolucion === 'BUENO' ? 'DISPONIBLE' : 'FUERA_DE_SERVICIO' })
+        .update({ estado: estadoEjemplar })
         .eq('id_ejemplar', prestamo.ejemplar?.id_ejemplar || prestamo.id_ejemplar)
+      if (ejemplarError) throw ejemplarError
 
       if (multa.tieneMulta) {
-        await supabase.from('multa').upsert({
+        const { error: multaError } = await supabase.from('multa').upsert({
           id_prestamo: prestamo.id_prestamo,
           dias_retraso: multa.dias,
           cargo_base: multa.cargoBase,
@@ -213,6 +221,7 @@ export default function Dashboard() {
           monto_total: multa.total,
           pagada: false,
         }, { onConflict: 'id_prestamo' })
+        if (multaError) throw multaError
       }
 
       setMensaje({ texto: 'Devolucion confirmada correctamente.', error: false })
@@ -293,95 +302,163 @@ export default function Dashboard() {
     background: '#2563eb',
     color: 'white',
   }
-  const maxActividad = Math.max(1, actividad?.prestamos || 0, actividad?.devoluciones || 0, actividad?.multas || 0, actividad?.sinDisponibles || 0)
+  const maxActividad = Math.max(1, actividad?.prestamos || 0, actividad?.devoluciones || 0, actividad?.multas || 0)
   const actividadItems = actividad ? [
     { label: 'Prestamos registrados', valor: actividad.prestamos, color: '#2563eb', icon: BookOpen, ruta: '/prestamos' },
     { label: 'Devoluciones realizadas', valor: actividad.devoluciones, color: '#16a34a', icon: CheckCircle2, ruta: '/devoluciones' },
-    { label: 'Multas generadas', valor: actividad.multas, color: '#dc2626', icon: CreditCard, ruta: '/devoluciones' },
-    { label: 'Titulos sin disponibilidad', valor: actividad.sinDisponibles, color: '#d97706', icon: AlertTriangle, ruta: '/catalogo' },
+    { label: 'Multas generadas', valor: actividad.multas, color: '#dc2626', icon: CreditCard, ruta: '/devoluciones', state: { vista: 'multas' } },
   ] : []
+  const prestamosAlertas = [...inmediatos, ...porVencer, ...vencidos]
+  const prestamosFiltrados = prestamosAlertas.filter(p => {
+    if (filtroPrestamos === 'formal') return p.tipo === 'FORMAL'
+    if (filtroPrestamos === 'inmediato') return p.tipo === 'EXTERNO_INMEDIATO'
+    return true
+  })
+  const tabsPrestamos = [
+    { id: 'todos', label: 'Todos', total: prestamosAlertas.length },
+    { id: 'inmediato', label: 'Inmediato', total: inmediatos.length },
+    { id: 'formal', label: 'Formal', total: porVencer.length + vencidos.length },
+  ]
 
-  function renderAlertasTabla(titulo, descripcion, prestamos, tipo) {
-    const vencido = tipo === 'vencidos'
+  function renderPanelPrestamos() {
     return (
       <section style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: vencido ? '#991b1b' : '#92400e' }}>{titulo}</h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>{descripcion}</p>
+            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Prestamos en alerta</h2>
+            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+              Revisa prestamos inmediatos activos, formales por vencer y formales vencidos desde una sola vista.
+            </p>
           </div>
           <span style={{
             borderRadius: '999px',
             padding: '6px 10px',
-            background: vencido ? '#fee2e2' : '#fef3c7',
-            color: vencido ? '#991b1b' : '#92400e',
+            background: '#eff6ff',
+            color: '#1d4ed8',
             fontSize: '13px',
             fontWeight: 800,
           }}>
-            {prestamos.length}
+            {prestamosFiltrados.length}
           </span>
         </div>
 
-        {prestamos.length === 0 ? (
+        <div style={{
+          display: 'inline-flex',
+          gap: '4px',
+          padding: '4px',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          background: '#f8fafc',
+          marginBottom: '14px',
+          flexWrap: 'wrap',
+        }}>
+          {tabsPrestamos.map(tab => {
+            const activo = filtroPrestamos === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setFiltroPrestamos(tab.id)}
+                style={{
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  background: activo ? '#2563eb' : 'transparent',
+                  color: activo ? 'white' : '#475569',
+                  fontSize: '13px',
+                  fontWeight: 900,
+                }}
+              >
+                {tab.label} <span style={{ opacity: activo ? 0.95 : 0.7 }}>({tab.total})</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {prestamosFiltrados.length === 0 ? (
           <div style={{ border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '22px', textAlign: 'center', color: '#64748b', background: '#f8fafc' }}>
             No hay registros para mostrar.
           </div>
         ) : (
           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '1020px' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left' }}>
                   <th style={{ padding: '12px' }}>Lector</th>
+                  <th style={{ padding: '12px' }}>Tipo</th>
                   <th style={{ padding: '12px' }}>Libro</th>
-                  <th style={{ padding: '12px' }}>Fecha limite</th>
-                  <th style={{ padding: '12px' }}>{vencido ? 'Retraso' : 'Estado'}</th>
-                  <th style={{ padding: '12px' }}>{vencido ? 'Multa estimada' : 'Telefono'}</th>
+                  <th style={{ padding: '12px' }}>Fecha / salida</th>
+                  <th style={{ padding: '12px' }}>Estado</th>
+                  <th style={{ padding: '12px' }}>Contacto / multa</th>
                   <th style={{ padding: '12px', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {prestamos.map(p => (
-                  <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '12px' }}>
-                      <button
-                        onClick={() => setLectorDetalle(p.lector)}
-                        style={{ border: 'none', background: 'transparent', color: '#2563eb', fontWeight: 800, cursor: 'pointer', padding: 0 }}
-                      >
-                        {p.lector?.nombre || 'Sin lector'}
-                      </button>
-                    </td>
-                    <td style={{ padding: '12px', color: '#334155' }}>
-                      <strong>{p.ejemplar?.titulo?.titulo}</strong>
-                      <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
-                    </td>
-                    <td style={{ padding: '12px', color: '#475569' }}>{p.fecha_devolucion_esperada}</td>
-                    <td style={{ padding: '12px', color: vencido ? '#dc2626' : '#b45309', fontWeight: 800 }}>
-                      {vencido ? `${diasRetraso(p.fecha_devolucion_esperada)} dias` : diasRestantes(p.fecha_devolucion_esperada)}
-                    </td>
-                    <td style={{ padding: '12px', color: vencido ? '#dc2626' : '#475569', fontWeight: vencido ? 800 : 400 }}>
-                      {vencido ? multaEstimada(p) : p.lector?.telefono || '-'}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
-                        <button onClick={() => setLectorDetalle(p.lector)} style={buttonSecondary}>
-                          <Eye size={15} /> Ver lector
-                        </button>
-                        {vencido && (
-                          <button onClick={() => generarReportePago(p)} style={buttonSecondary}>
-                            <FileText size={15} /> PDF pago
+                {prestamosFiltrados.map(p => {
+                  const esInmediato = p.tipo === 'EXTERNO_INMEDIATO'
+                  const vencido = !esInmediato && (
+                    p.estado === 'VENCIDO' ||
+                    (p.estado === 'ACTIVO' && diasRetraso(p.fecha_devolucion_esperada) > 0)
+                  )
+                  const nombreLector = p.lector?.nombre || p.nombre_inmediato || 'Sin lector'
+                  const tipoTexto = esInmediato ? 'Inmediato' : 'Formal'
+                  const contacto = esInmediato
+                    ? `DPI garantia: ${p.dpi_garantia || '-'}`
+                    : p.lector?.telefono || '-'
+
+                  return (
+                    <tr key={p.id_prestamo} style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px' }}>
+                        <strong style={{ color: '#0f172a' }}>{nombreLector}</strong>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          borderRadius: '999px',
+                          padding: '5px 9px',
+                          background: esInmediato ? '#dbeafe' : '#ecfdf5',
+                          color: esInmediato ? '#1d4ed8' : '#047857',
+                          fontSize: '12px',
+                          fontWeight: 900,
+                        }}>
+                          {tipoTexto}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#334155' }}>
+                        <strong>{p.ejemplar?.titulo?.titulo}</strong>
+                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>{p.ejemplar?.codigo_inventario}</div>
+                      </td>
+                      <td style={{ padding: '12px', color: '#475569' }}>
+                        {esInmediato ? `${p.fecha_salida || '-'} ${p.hora_salida || ''}`.trim() : p.fecha_devolucion_esperada}
+                      </td>
+                      <td style={{ padding: '12px', color: vencido ? '#dc2626' : esInmediato ? '#1d4ed8' : '#b45309', fontWeight: 800 }}>
+                        {esInmediato ? 'Inmediato activo' : vencido ? `Vencido por ${diasRetraso(p.fecha_devolucion_esperada)} dias` : diasRestantes(p.fecha_devolucion_esperada)}
+                      </td>
+                      <td style={{ padding: '12px', color: vencido ? '#dc2626' : '#475569', fontWeight: vencido ? 800 : 400 }}>
+                        {vencido ? multaEstimada(p) : contacto}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                          <button onClick={() => navigate('/lectores', { state: { busqueda: nombreLector } })} style={buttonSecondary}>
+                            Ver en lectores
                           </button>
-                        )}
-                        <button
-                          onClick={() => abrirConfirmacionDevolucion(p)}
-                          disabled={procesandoId === p.id_prestamo}
-                          style={{ ...buttonPrimary, opacity: procesandoId === p.id_prestamo ? 0.65 : 1 }}
-                        >
-                          <CheckCircle2 size={15} /> Confirmar devolucion
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {vencido && (
+                            <button onClick={() => generarReportePago(p)} style={buttonSecondary}>
+                              <FileText size={15} /> PDF pago
+                            </button>
+                          )}
+                          <button
+                            onClick={() => abrirConfirmacionDevolucion(p)}
+                            disabled={procesandoId === p.id_prestamo}
+                            style={{ ...buttonPrimary, opacity: procesandoId === p.id_prestamo ? 0.65 : 1 }}
+                          >
+                            <CheckCircle2 size={15} /> Confirmar devolucion
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -455,7 +532,7 @@ export default function Dashboard() {
               return (
                 <button
                   key={item.label}
-                  onClick={() => navigate(item.ruta)}
+                  onClick={() => navigate(item.ruta, item.state ? { state: item.state } : undefined)}
                   style={{
                     border: '1px solid #e2e8f0',
                     borderRadius: '8px',
@@ -485,20 +562,7 @@ export default function Dashboard() {
           <p style={{ margin: 0, color: '#64748b' }}>Cargando alertas...</p>
         </section>
       ) : (
-        <div style={{ display: 'grid', gap: '18px' }}>
-          {renderAlertasTabla(
-            `Por vencer - proximos ${DIAS_ALERTA} dias`,
-            'Prestamos formales que todavia estan a tiempo, pero requieren seguimiento.',
-            porVencer,
-            'por-vencer'
-          )}
-          {renderAlertasTabla(
-            'Prestamos vencidos',
-            'Genera el reporte de pago o confirma la devolucion si el libro ya regreso.',
-            vencidos,
-            'vencidos'
-          )}
-        </div>
+        renderPanelPrestamos()
       )}
 
       {devolucionPendiente && (() => {
@@ -532,7 +596,7 @@ export default function Dashboard() {
               <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#f8fafc', marginBottom: '14px' }}>
                 <p style={{ margin: '0 0 4px 0', color: '#0f172a', fontWeight: 800 }}>{devolucionPendiente.ejemplar?.titulo?.titulo}</p>
                 <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
-                  {devolucionPendiente.lector?.nombre} · Codigo {devolucionPendiente.ejemplar?.codigo_inventario || '-'} · Limite {devolucionPendiente.fecha_devolucion_esperada}
+                  {devolucionPendiente.lector?.nombre || devolucionPendiente.nombre_inmediato || 'Sin lector'} · {devolucionPendiente.tipo === 'EXTERNO_INMEDIATO' ? 'Inmediato' : 'Formal'} · Codigo {devolucionPendiente.ejemplar?.codigo_inventario || '-'} · Limite {devolucionPendiente.fecha_devolucion_esperada}
                 </p>
               </div>
 
@@ -570,7 +634,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {estadoLibroDevolucion !== 'BUENO' && (
+              {estadoLibroDevolucion === 'DAÑADO_GRAVE' && (
                 <p style={{ margin: '0 0 16px 0', color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', fontWeight: 700 }}>
                   El ejemplar quedara marcado como fuera de servicio.
                 </p>
@@ -596,51 +660,6 @@ export default function Dashboard() {
           </div>
         )
       })()}
-
-      {lectorDetalle && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }}>
-          <div style={{ background: 'white', borderRadius: '8px', padding: '22px', width: '460px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.25)' }}>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
-                <User size={20} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>{lectorDetalle.nombre}</h3>
-                <p style={{ margin: '3px 0 0 0', color: '#64748b', fontSize: '13px' }}>Datos del lector</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', fontSize: '14px', color: '#334155' }}>
-              <p style={{ margin: 0 }}><strong>DPI:</strong><br />{lectorDetalle.dpi || '-'}</p>
-              <p style={{ margin: 0 }}><strong>Telefono:</strong><br />{lectorDetalle.telefono || '-'}</p>
-              <p style={{ margin: 0, gridColumn: '1/-1' }}><strong>Direccion:</strong><br />{lectorDetalle.direccion || '-'}</p>
-              <p style={{ margin: 0 }}><strong>Menor de edad:</strong><br />{lectorDetalle.es_menor ? 'Si' : 'No'}</p>
-              <p style={{ margin: 0 }}><strong>Grado/Ciclo:</strong><br />{lectorDetalle.grado_ciclo || '-'}</p>
-              {lectorDetalle.es_menor && (
-                <>
-                  <p style={{ margin: 0 }}><strong>Tutor:</strong><br />{lectorDetalle.nombre_tutor || '-'}</p>
-                  <p style={{ margin: 0 }}><strong>Tel. tutor:</strong><br />{lectorDetalle.telefono_tutor || '-'}</p>
-                  <p style={{ margin: 0 }}><strong>DPI tutor:</strong><br />{lectorDetalle.dpi_tutor || '-'}</p>
-                </>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '22px' }}>
-              <button onClick={() => setLectorDetalle(null)} style={buttonSecondary}>Cerrar</button>
-              <button onClick={() => navigate('/lectores')} style={buttonPrimary}>Ir a lectores</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
