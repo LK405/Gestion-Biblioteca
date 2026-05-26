@@ -109,3 +109,15 @@ Autor: Codex
 Archivo modificado: src/index.css, src/components/Layout.jsx
 Descripcion: Estilo visual ajustado segun referencia: fondo gris/lavanda con forma suave, sidebar blanca flotante con bordes redondeados, iconos de navegacion y acento azul-violeta mas vivo.
 Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Login.jsx
+Descripcion: Pantalla de inicio de sesion redisenada con tarjeta central, ilustracion superior estilo paisaje, textos del proyecto y formulario simple de usuario y contrasena.
+Estado: probado en local con eslint enfocado y npm run build.
+
+Fecha: 26/05/2026
+Autor: Codex
+Archivo modificado: src/pages/Login.jsx, src/components/Layout.jsx
+Descripcion: Login ajustado a la paleta gris/azul-violeta del portal con mejor contraste de texto; boton de cerrar sesion reducido para no solaparse con el borde redondeado del sidebar.
+Estado: probado en local con eslint enfocado y npm run build.

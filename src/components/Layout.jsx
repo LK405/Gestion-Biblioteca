@@ -136,23 +136,24 @@ export default function Layout({ children }) {
           onClick={handleLogout}
           style={{
             marginTop: '14px',
-            padding: '11px 12px',
+            padding: '9px 10px',
             cursor: 'pointer',
             background: 'rgba(248, 250, 252, 0.92)',
             border: '1px solid rgba(239, 68, 68, 0.18)',
             color: '#dc2626',
-            borderRadius: '10px',
-            fontSize: '14px',
+            borderRadius: '9px',
+            fontSize: '13px',
             fontWeight: 800,
-            width: '100%',
+            width: 'calc(100% - 14px)',
+            marginLeft: '0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
+            gap: '7px',
             boxShadow: '0 12px 24px rgba(31, 41, 55, 0.08)',
           }}
         >
-          <LogOut size={16} />
+          <LogOut size={15} />
           Cerrar sesión
         </button>
       </div>
