@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { jsPDF } from 'jspdf'
+import { crearPdfBiblioteca, money } from '@/lib/pdfDesign'
 import { CheckCircle2, CreditCard, FileText, RotateCcw, Search } from 'lucide-react'
 
 const POR_PAGINA = 10
@@ -175,42 +175,32 @@ async function buscarPrestamos() {
   }
 
   function generarPDFPagoMulta(multa) {
-    const doc = new jsPDF()
     const fechaHora = new Date().toLocaleString('es-GT')
-    let y = 20
+    const nombre = multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || 'No registrado'
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(16)
-    doc.text('Biblioteca Municipal', 105, y, { align: 'center' }); y += 8
-    doc.setFontSize(12)
-    doc.text('Comprobante de pago de multa', 105, y, { align: 'center' }); y += 10
-    doc.line(15, y, 195, y); y += 10
-
-    doc.setFontSize(10)
-    doc.text('DATOS DEL USUARIO', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Nombre: ${multa.prestamo?.lector?.nombre || multa.prestamo?.nombre_inmediato || 'No registrado'}`, 15, y); y += 6
-    doc.text(`DPI: ${multa.prestamo?.lector?.dpi || multa.prestamo?.dpi_garantia || 'No registrado'}`, 15, y); y += 10
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('DATOS DE LA MULTA', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Libro: ${multa.prestamo?.ejemplar?.titulo?.titulo || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Codigo ejemplar: ${multa.prestamo?.ejemplar?.codigo_inventario || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Estado del libro: ${multa.estado_libro || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Dias de retraso: ${multa.dias_retraso || 0}`, 15, y); y += 6
-    doc.text(`Fecha de pago: ${fechaHora}`, 15, y); y += 10
-
-    doc.line(15, y, 195, y); y += 8
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text(`MONTO PAGADO: Q${Number(multa.monto_total || 0).toFixed(2)}`, 15, y); y += 12
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(120)
-    doc.text(`Comprobante generado el ${fechaHora}`, 105, y, { align: 'center' })
-
-    doc.save(`comprobante-pago-multa-${multa.id_multa}.pdf`)
+    crearPdfBiblioteca({
+      title: 'COMPROBANTE',
+      subtitle: 'Pago de multa',
+      generatedAt: fechaHora,
+      leftTitle: 'DATOS DEL USUARIO',
+      leftRows: [
+        { label: 'Nombre', value: nombre },
+        { label: 'DPI', value: multa.prestamo?.lector?.dpi || multa.prestamo?.dpi_garantia || 'No registrado' },
+      ],
+      rightTitle: 'DATOS DE LA MULTA',
+      rightRows: [
+        { label: 'Libro', value: multa.prestamo?.ejemplar?.titulo?.titulo || 'No registrado' },
+        { label: 'Codigo', value: multa.prestamo?.ejemplar?.codigo_inventario || 'No registrado' },
+        { label: 'Estado', value: multa.estado_libro || 'No registrado' },
+        { label: 'Fecha pago', value: fechaHora },
+      ],
+      charges: [
+        { concepto: 'Multa registrada', detalle: `${multa.dias_retraso || 0} dia(s) / ${multa.estado_libro || 'BUENO'}`, monto: money(multa.monto_total) },
+      ],
+      totalLabel: 'PAGADO',
+      total: multa.monto_total,
+      fileName: `comprobante-pago-multa-${multa.id_multa}.pdf`,
+    })
   }
 
   async function registrarPagoMulta(multa) {
@@ -282,71 +272,46 @@ async function buscarPrestamos() {
   }
 
   function generarPDF(datos) {
-    const doc = new jsPDF()
     const ahora = new Date()
     const fechaHora = ahora.toLocaleString('es-GT')
-
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Biblioteca Municipal', 105, 20, { align: 'center' })
-    doc.setFontSize(12)
-    doc.text('Comprobante de Devolución', 105, 28, { align: 'center' })
-    doc.setLineWidth(0.5)
-    doc.line(15, 33, 195, 33)
-
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    let y = 42
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('DATOS DEL LECTOR', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Nombre: ${datos.lector.nombre}`, 15, y); y += 6
-    doc.text(`DPI: ${datos.lector.dpi || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Teléfono: ${datos.lector.telefono || 'No registrado'}`, 15, y); y += 10
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('DATOS DEL PRÉSTAMO', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Libro: ${datos.libro}`, 15, y); y += 6
-    doc.text(`Código ejemplar: ${datos.codigoEjemplar}`, 15, y); y += 6
-    doc.text(`Fecha de salida: ${datos.fechaSalida}`, 15, y); y += 6
-    doc.text(`Fecha límite: ${datos.fechaLimite}`, 15, y); y += 6
-    doc.text(`Fecha de devolución: ${datos.fechaDevolucion}`, 15, y); y += 6
-    doc.text(`Días de retraso: ${datos.diasRetraso}`, 15, y); y += 6
-    doc.text(`Estado del libro: ${datos.estadoLibro}`, 15, y); y += 10
-
-    doc.line(15, y, 195, y); y += 8
-    doc.setFont('helvetica', 'bold')
-    doc.text('MULTA', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
+    const charges = []
 
     if (datos.multa.tieneMulta) {
       if (datos.multa.cargoBase > 0) {
-        doc.text(`Cargo base por vencimiento: Q${datos.multa.cargoBase.toFixed(2)}`, 15, y); y += 6
+        charges.push({ concepto: 'Vencimiento', detalle: 'Cargo base', monto: money(datos.multa.cargoBase) })
       }
       if (datos.multa.totalDias > 0) {
-        doc.text(`Cargo por ${datos.multa.dias} día(s) × Q${datos.multa.cargoPorDia.toFixed(2)}: Q${datos.multa.totalDias.toFixed(2)}`, 15, y); y += 6
+        charges.push({ concepto: 'Dias de retraso', detalle: `${datos.multa.dias} x ${money(datos.multa.cargoPorDia)}`, monto: money(datos.multa.totalDias) })
       }
       if (datos.multa.cargoDano > 0) {
-        doc.text(`Cargo por daño (${datos.estadoLibro}): Q${datos.multa.cargoDano.toFixed(2)}`, 15, y); y += 6
+        charges.push({ concepto: 'Dano del libro', detalle: datos.estadoLibro, monto: money(datos.multa.cargoDano) })
       }
-    } else {
-      doc.text('Sin multa', 15, y); y += 6
     }
 
-    y += 2
-    doc.line(15, y, 195, y); y += 8
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text(`MONTO TOTAL: Q${datos.multa.total.toFixed(2)}`, 15, y); y += 12
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(120)
-    doc.text(`Comprobante generado el ${fechaHora}`, 105, y, { align: 'center' })
-
-    doc.save(`comprobante-devolucion-${datos.lector.nombre.replace(/\s+/g, '-')}.pdf`)
+    crearPdfBiblioteca({
+      title: 'DEVOLUCION',
+      subtitle: 'Comprobante de devolucion',
+      generatedAt: fechaHora,
+      leftTitle: 'DATOS DEL LECTOR',
+      leftRows: [
+        { label: 'Nombre', value: datos.lector.nombre },
+        { label: 'DPI', value: datos.lector.dpi || 'No registrado' },
+        { label: 'Telefono', value: datos.lector.telefono || 'No registrado' },
+      ],
+      rightTitle: 'DATOS DEL PRESTAMO',
+      rightRows: [
+        { label: 'Libro', value: datos.libro },
+        { label: 'Codigo', value: datos.codigoEjemplar },
+        { label: 'Salida', value: datos.fechaSalida },
+        { label: 'Limite', value: datos.fechaLimite },
+        { label: 'Devolucion', value: datos.fechaDevolucion },
+        { label: 'Estado', value: datos.estadoLibro },
+      ],
+      charges,
+      totalLabel: 'TOTAL',
+      total: datos.multa.total,
+      fileName: `comprobante-devolucion-${datos.lector.nombre.replace(/\s+/g, '-')}.pdf`,
+    })
   }
 
   async function registrarDevolucion() {

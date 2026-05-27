@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { jsPDF } from 'jspdf'
 import {
   ArrowDown,
   ArrowUp,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { crearPdfBiblioteca, money } from '@/lib/pdfDesign'
 
 const DIAS_ALERTA = 7
 
@@ -242,48 +242,34 @@ export default function Dashboard() {
 
   function generarReportePago(prestamo) {
     const multa = calcularMulta(prestamo)
-    const doc = new jsPDF()
     const fechaHora = new Date().toLocaleString('es-GT')
-    let y = 20
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(16)
-    doc.text('Biblioteca Municipal', 105, y, { align: 'center' }); y += 8
-    doc.setFontSize(12)
-    doc.text('Reporte de pago por prestamo vencido', 105, y, { align: 'center' }); y += 10
-    doc.line(15, y, 195, y); y += 10
-
-    doc.setFontSize(10)
-    doc.text('DATOS DEL LECTOR', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Nombre: ${prestamo.lector?.nombre || 'No registrado'}`, 15, y); y += 6
-    doc.text(`DPI: ${prestamo.lector?.dpi || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Telefono: ${prestamo.lector?.telefono || 'No registrado'}`, 15, y); y += 10
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('DATOS DEL PRESTAMO', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Libro: ${prestamo.ejemplar?.titulo?.titulo || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Autor: ${prestamo.ejemplar?.titulo?.autor || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Codigo ejemplar: ${prestamo.ejemplar?.codigo_inventario || 'No registrado'}`, 15, y); y += 6
-    doc.text(`Fecha limite: ${prestamo.fecha_devolucion_esperada}`, 15, y); y += 6
-    doc.text(`Dias de retraso: ${multa.dias}`, 15, y); y += 10
-
-    doc.line(15, y, 195, y); y += 8
-    doc.setFont('helvetica', 'bold')
-    doc.text('DESGLOSE DE COBRO', 15, y); y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Cargo base por vencimiento: Q${multa.cargoBase.toFixed(2)}`, 15, y); y += 6
-    doc.text(`Cargo por dias (${multa.dias} x Q${multa.cargoPorDia.toFixed(2)}): Q${multa.totalDias.toFixed(2)}`, 15, y); y += 8
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text(`TOTAL A PAGAR: Q${multa.total.toFixed(2)}`, 15, y); y += 12
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(120)
-    doc.text(`Reporte generado el ${fechaHora}`, 105, y, { align: 'center' })
-
-    doc.save(`reporte-pago-${prestamo.lector?.nombre?.replace(/\s+/g, '-') || 'lector'}-${prestamo.id_prestamo}.pdf`)
+    crearPdfBiblioteca({
+      title: 'REPORTE',
+      subtitle: 'Pago por prestamo vencido',
+      generatedAt: fechaHora,
+      leftTitle: 'DATOS DEL LECTOR',
+      leftRows: [
+        { label: 'Nombre', value: prestamo.lector?.nombre || 'No registrado' },
+        { label: 'DPI', value: prestamo.lector?.dpi || 'No registrado' },
+        { label: 'Telefono', value: prestamo.lector?.telefono || 'No registrado' },
+      ],
+      rightTitle: 'DATOS DEL PRESTAMO',
+      rightRows: [
+        { label: 'Libro', value: prestamo.ejemplar?.titulo?.titulo || 'No registrado' },
+        { label: 'Autor', value: prestamo.ejemplar?.titulo?.autor || 'No registrado' },
+        { label: 'Codigo', value: prestamo.ejemplar?.codigo_inventario || 'No registrado' },
+        { label: 'Fecha limite', value: prestamo.fecha_devolucion_esperada },
+        { label: 'Retraso', value: `${multa.dias} dia(s)` },
+      ],
+      charges: [
+        { concepto: 'Vencimiento', detalle: 'Cargo base', monto: money(multa.cargoBase) },
+        { concepto: 'Dias de retraso', detalle: `${multa.dias} x ${money(multa.cargoPorDia)}`, monto: money(multa.totalDias) },
+      ],
+      totalLabel: 'A PAGAR',
+      total: multa.total,
+      fileName: `reporte-pago-${prestamo.lector?.nombre?.replace(/\s+/g, '-') || 'lector'}-${prestamo.id_prestamo}.pdf`,
+    })
   }
 
   const panelStyle = { border: '1px solid var(--border-soft)', borderRadius: '10px', background: 'var(--surface-panel)', padding: '18px', boxShadow: 'var(--shadow-panel)', backdropFilter: 'blur(12px)' }
