@@ -93,7 +93,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', padding: '28px 34px 30px' }}>
           <h2 style={{ margin: '0 0 2px', color: 'var(--ink)', fontSize: '18px', fontWeight: 700, letterSpacing: '0.08em' }}>
-            USER LOGIN
+            Ingrese sus Credenciales
           </h2>
 
           <label style={fieldWrapStyle}>
